@@ -51,11 +51,60 @@ jobs:
         # refresh once prosodic loads, then tokens, hints, hover and commands.
         run: uv run python scripts/smoke_lsp.py
 
-  extension:
-    name: extension
+  bundle:
+    # The VSIX ships the server, pruned to a third of its installed size by dropping
+    # what prosodic declares but melic never reaches. That prune is written against
+    # declared dependencies rather than imports, so an upstream release could
+    # invalidate it without a line changing here — and the failure would be a user
+    # whose extension does not start, not a red build. So run the real suite and the
+    # real handshake against the pruned tree itself, not against the dev environment.
+    name: bundled server
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Build the bundle
+        run: ./scripts/bundle_server.sh bundled
+
+      # --no-project keeps the workspace virtualenv out of the way, so a dependency
+      # that only the dev environment satisfies fails here rather than in the
+      # marketplace. pytest itself is not in the bundle, hence uv's interpreter.
+      - name: Tests, against the bundle
+        env:
+          PYTHONPATH: bundled/libs
+        run: uv run --no-project --with pytest --python 3.12 python -m pytest -q
+
+      # And this one runs on the interpreter that actually ships, so the bundle is
+      # exercised exactly as a user's machine would exercise it.
+      - name: LSP smoke test, driven by the bundled interpreter
+        env:
+          PYTHONPATH: bundled/libs
+        run: bundled/python/bin/python3.12 scripts/smoke_lsp.py
+
+  extension:
+    # One VSIX per platform, because the bundled interpreter and the compiled wheels
+    # beside it only run on the one they were built for. The marketplace serves each
+    # user the build matching their machine, so nobody downloads four they cannot run.
+    # All of them cross-build from this one runner — uv resolves both the wheels and
+    # the interpreter for a named target — so this is a matrix, not a fleet.
+    name: extension (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [darwin-arm64, darwin-x64, linux-x64, linux-arm64, win32-x64]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - uses: actions/setup-node@v7
         with:
@@ -72,13 +121,21 @@ jobs:
       - run: npm run check-types
         working-directory: editors/vscode
 
+      - name: Bundle the server for ${{ matrix.target }}
+        # Inside the extension folder, because that is what vsce packages.
+        run: ./scripts/bundle_server.sh editors/vscode/bundled ${{ matrix.target }}
+
       - name: Package
-        # vsce runs vscode:prepublish, which type checks and bundles.
-        run: npx @vscode/vsce package
+        # vsce runs vscode:prepublish, which type checks and bundles the client. The
+        # server bundle is built above instead: prepublish has no idea which target
+        # it is being run for, and the answer differs for every one of them.
+        run: npx @vscode/vsce package --target ${{ matrix.target }}
         working-directory: editors/vscode
 
       - uses: actions/upload-artifact@v7
         with:
-          name: melic-lsp-vsix
+          name: melic-lsp-vsix-${{ matrix.target }}
           path: editors/vscode/*.vsix
           if-no-files-found: error
+          # These are large and mostly interesting on release day.
+          retention-days: 14

@@ -6,3 +6,10 @@ src/**
 tsconfig.json
 **/*.map
 **/*.ts
+
+# bundled/ holds the interpreter and the server's dependencies and ships whole — it
+# is the point of a platform-specific VSIX. Re-included last, because the two globs
+# above reach into it as well: `.ts` is also a video container, and a dependency
+# shipping one as a test fixture would otherwise be quietly cut out of a tree whose
+# contents have to match what was tested.
+!bundled/**

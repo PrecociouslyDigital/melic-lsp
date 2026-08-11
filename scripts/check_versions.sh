@@ -27,4 +27,17 @@ if [[ $# -gt 0 ]]; then
     fi
 fi
 
+# The bundled interpreter is named twice: once by the script that fetches it, once by
+# the client that launches it by path. Disagreement ships a VSIX whose server cannot
+# start at all, and only on the machines that have no other candidate to fall back to.
+fetched=$(grep -m1 '^python_version=' scripts/bundle_server.sh | cut -d= -f2)
+launched=$(grep -m1 -o 'python3\.[0-9]\+' editors/vscode/src/extension.ts | cut -c7-)
+
+echo "bundled interpreter       $fetched (fetched), $launched (launched)"
+
+if [[ "$fetched" != "$launched" ]]; then
+    echo "MISMATCH: bundle_server.sh builds $fetched, extension.ts launches $launched" >&2
+    exit 1
+fi
+
 echo "versions agree"

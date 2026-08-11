@@ -3,7 +3,9 @@ __pycache__/
 .pytest_cache/
 .venv/
 dist/
+bundled/
 node_modules/
 out/
 *.vsix
 .serena/
+.DS_Store

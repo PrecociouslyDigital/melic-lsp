@@ -20,8 +20,39 @@ import {
 
 let client: LanguageClient | undefined;
 
+/** How to launch the server: a command, its arguments, and any environment it needs. */
+type Server = { command: string; args: string[]; env?: NodeJS.ProcessEnv };
+
+/**
+ * The interpreter and dependencies packaged into the VSIX by
+ * `scripts/bundle_server.sh`. Absent in a development checkout, which is what makes
+ * the bundle safe to prefer over nothing: there, one of the candidates above it wins.
+ *
+ * `python3.12` is the real binary rather than the `python` symlink beside it, which
+ * packaging may not preserve. The version tracks `python_version` in the build
+ * script; `check_versions.sh` holds the two together.
+ */
+function bundledServer(context: vscode.ExtensionContext): Server | undefined {
+  const root = path.join(context.extensionPath, "bundled");
+  const interpreter =
+    process.platform === "win32"
+      ? path.join(root, "python", "python.exe")
+      : path.join(root, "python", "bin", "python3.12");
+
+  if (!fs.existsSync(interpreter)) {
+    return undefined;
+  }
+  return {
+    command: interpreter,
+    args: ["-m", "melic_lsp.server"],
+    // The dependencies sit beside the interpreter rather than inside it, so they
+    // have to be pointed at rather than found.
+    env: { ...process.env, PYTHONPATH: path.join(root, "libs") },
+  };
+}
+
 /** Where to look for the server, in order of how deliberate the choice is. */
-function resolveServer(): { command: string; args: string[] } {
+function resolveServer(context: vscode.ExtensionContext): Server {
   const configured = vscode.workspace
     .getConfiguration("melic")
     .get<string>("serverPath");
@@ -31,10 +62,15 @@ function resolveServer(): { command: string; args: string[] } {
 
   const binary = process.platform === "win32" ? "Scripts" : "bin";
   const candidates = [
-    // A checkout being worked on wins over anything installed globally.
-    ...(vscode.workspace.workspaceFolders ?? []).map((folder) =>
-      path.join(folder.uri.fsPath, ".venv", binary, "melic-lsp")
-    ),
+    // A checkout being worked on wins over anything installed globally — but only
+    // one we are allowed to run. A workspace .venv is workspace-controlled content,
+    // so starting it is executing code that came with the folder; in an untrusted
+    // workspace we skip it and let the bundle below answer instead.
+    ...(vscode.workspace.isTrusted
+      ? (vscode.workspace.workspaceFolders ?? []).map((folder) =>
+          path.join(folder.uri.fsPath, ".venv", binary, "melic-lsp")
+        )
+      : []),
     // Where `uv tool install` and `pipx install` put it. Worth checking by path
     // as well as by name: a VS Code started from the Dock on macOS does not
     // necessarily inherit a login shell's PATH, and then a perfectly good
@@ -43,15 +79,25 @@ function resolveServer(): { command: string; args: string[] } {
   ];
 
   const found = candidates.find((candidate) => fs.existsSync(candidate));
-  return { command: found ?? "melic-lsp", args: [] };
+  if (found) {
+    return { command: found, args: [] };
+  }
+
+  // Last, so that anything the user installed deliberately outranks what we shipped.
+  // Falling through to the bare name keeps development checkouts working, where no
+  // bundle has been built and `melic-lsp` is expected on PATH.
+  return bundledServer(context) ?? { command: "melic-lsp", args: [] };
 }
 
 export function activate(context: vscode.ExtensionContext): void {
-  const server = resolveServer();
-  const serverOptions: ServerOptions = {
-    run: { command: server.command, args: server.args, transport: TransportKind.stdio },
-    debug: { command: server.command, args: server.args, transport: TransportKind.stdio },
+  const server = resolveServer(context);
+  const executable = {
+    command: server.command,
+    args: server.args,
+    options: server.env ? { env: server.env } : undefined,
+    transport: TransportKind.stdio,
   };
+  const serverOptions: ServerOptions = { run: executable, debug: executable };
 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: "file", language: "chordpro" }],

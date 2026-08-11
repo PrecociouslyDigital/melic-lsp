@@ -73,7 +73,11 @@ def main() -> int:
     process = subprocess.Popen(
         [sys.executable, "-m", "melic_lsp.server"],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        cwd=ROOT, env={**os.environ, "PYTHONPATH": str(ROOT / "src")},
+        # The working tree by default. An inherited PYTHONPATH wins instead, so the
+        # same handshake can be run against a built bundle — which is what the
+        # `bundle` CI job does with the pruned tree that ships in the VSIX.
+        cwd=ROOT, env={**os.environ,
+                       "PYTHONPATH": os.environ.get("PYTHONPATH") or str(ROOT / "src")},
     )
     assert process.stdin and process.stdout
     stdin, stdout = process.stdin, process.stdout

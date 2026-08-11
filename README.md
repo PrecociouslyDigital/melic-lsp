@@ -89,6 +89,14 @@ sudo apt install espeak-ng
 choco install espeak-ng
 ```
 
+### espeak
+
+`prosodic` also supports using [pytorch](https://github.com/pytorch/pytorch) to speed up automated scansion
+This extension does not bundle pytorch, but it will be used if it is available in the extension's environment.
+
+```bash
+uv tool install torch --torch-backend=auto
+```
 
 ## Development
 We welcome contributions! We currently only ship an extension for VSCode:

@@ -1,0 +1,9 @@
+# Ship the compiled extension and its runtime deps, nothing else.
+src/**
+.vscode/**
+tsconfig.json
+**/*.map
+**/*.ts
+**/tsconfig.json
+node_modules/typescript/**
+node_modules/@types/**

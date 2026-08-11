@@ -8,6 +8,7 @@
  */
 
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import {
@@ -20,7 +21,7 @@ import {
 let client: LanguageClient | undefined;
 
 /** Where to look for the server, in order of how deliberate the choice is. */
-function resolveServer(): { command: string; args: string[] } | undefined {
+function resolveServer(): { command: string; args: string[] } {
   const configured = vscode.workspace
     .getConfiguration("melic")
     .get<string>("serverPath");
@@ -29,24 +30,24 @@ function resolveServer(): { command: string; args: string[] } | undefined {
   }
 
   const binary = process.platform === "win32" ? "Scripts" : "bin";
-  for (const folder of vscode.workspace.workspaceFolders ?? []) {
-    const candidate = path.join(folder.uri.fsPath, ".venv", binary, "melic-lsp");
-    if (fs.existsSync(candidate)) {
-      return { command: candidate, args: [] };
-    }
-  }
+  const candidates = [
+    // A checkout being worked on wins over anything installed globally.
+    ...(vscode.workspace.workspaceFolders ?? []).map((folder) =>
+      path.join(folder.uri.fsPath, ".venv", binary, "melic-lsp")
+    ),
+    // Where `uv tool install` and `pipx install` put it. Worth checking by path
+    // as well as by name: a VS Code started from the Dock on macOS does not
+    // necessarily inherit a login shell's PATH, and then a perfectly good
+    // install looks like a missing one.
+    path.join(os.homedir(), ".local", binary, "melic-lsp"),
+  ];
 
-  // Installed with `uv tool install` or `pip install`, so on PATH.
-  return { command: "melic-lsp", args: [] };
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  return { command: found ?? "melic-lsp", args: [] };
 }
 
 export function activate(context: vscode.ExtensionContext): void {
   const server = resolveServer();
-  if (!server) {
-    vscode.window.showErrorMessage("Melic: could not find the melic-lsp server.");
-    return;
-  }
-
   const serverOptions: ServerOptions = {
     run: { command: server.command, args: server.args, transport: TransportKind.stdio },
     debug: { command: server.command, args: server.args, transport: TransportKind.stdio },

@@ -1,0 +1,187 @@
+{
+  "name": "melic-lsp",
+  "displayName": "Melic — ChordPro prosody",
+  "description": "Syllable counts, stress and chord alignment for ChordPro files",
+  "version": "0.1.0",
+  "publisher": "melic",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:chordpro"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "melic.compareSections",
+        "title": "Compare Sections",
+        "category": "Melic"
+      },
+      {
+        "command": "melic.scansionPanel",
+        "title": "Scansion Panel",
+        "category": "Melic"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "melic.compareSections",
+          "when": "editorLangId == chordpro"
+        },
+        {
+          "command": "melic.scansionPanel",
+          "when": "editorLangId == chordpro"
+        }
+      ]
+    },
+    "semanticTokenTypes": [
+      {
+        "id": "melicSyllable",
+        "description": "A syllable of a sung lyric",
+        "superType": "string"
+      }
+    ],
+    "semanticTokenModifiers": [
+      {
+        "id": "stressed",
+        "description": "Carries primary lexical stress"
+      },
+      {
+        "id": "secondary",
+        "description": "Carries secondary lexical stress"
+      },
+      {
+        "id": "unstressed",
+        "description": "Unstressed"
+      },
+      {
+        "id": "alternate",
+        "description": "Every other syllable, so neighbours stay distinguishable"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "chordpro",
+        "scopes": {
+          "melicSyllable.stressed": [
+            "markup.bold.chordpro",
+            "markup.bold"
+          ],
+          "melicSyllable.unstressed": [
+            "comment.chordpro",
+            "comment"
+          ]
+        }
+      }
+    ],
+    "configurationDefaults": {
+      "editor.semanticHighlighting.enabled": true,
+      "editor.semanticTokenColorCustomizations": {
+        "enabled": true,
+        "rules": {
+          "melicSyllable.stressed": {
+            "bold": true,
+            "foreground": "#d18616"
+          },
+          "melicSyllable.secondary": {
+            "foreground": "#b58e5a"
+          },
+          "melicSyllable.unstressed": {
+            "italic": true
+          },
+          "melicSyllable.stressed.alternate": {
+            "bold": true,
+            "foreground": "#e8a33d"
+          }
+        }
+      }
+    },
+    "configuration": {
+      "title": "Melic",
+      "properties": {
+        "melic.stressHighlight.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Colour syllables by lexical stress."
+        },
+        "melic.lineSignature.mode": {
+          "type": "string",
+          "enum": [
+            "chord-grouped",
+            "flat",
+            "count-only",
+            "off"
+          ],
+          "enumDescriptions": [
+            "Stress marks grouped by the chord covering them: 6σ · + [D]++ [G]+-",
+            "Stress marks in one run: 6σ · +++-+-",
+            "Syllable count only: 6σ",
+            "No signature"
+          ],
+          "default": "chord-grouped",
+          "description": "The signature shown at the end of each lyric line."
+        },
+        "melic.inlayHints.perSyllable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Mark stress above every syllable, not just at the line end."
+        },
+        "melic.rhyme.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Label rhyming line endings."
+        },
+        "melic.diagnostics.chordpro": {
+          "type": "boolean",
+          "default": true,
+          "description": "Report ChordPro syntax problems."
+        },
+        "melic.diagnostics.chordMidSyllable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Report a chord that lands inside a syllable rather than before it."
+        },
+        "melic.diagnostics.unknownPronunciation": {
+          "type": "string",
+          "enum": [
+            "hint",
+            "off"
+          ],
+          "default": "hint",
+          "description": "Note words whose pronunciation had to be guessed, or was unavailable."
+        },
+        "melic.lang": {
+          "type": "string",
+          "default": "en",
+          "description": "Language passed to prosodic."
+        },
+        "melic.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the melic-lsp executable. Empty means look in the workspace virtualenv, then on PATH."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}

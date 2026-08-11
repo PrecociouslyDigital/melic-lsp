@@ -1,0 +1,21 @@
+# Awkward shapes the position mapper has to survive.
+{t: Edge Cases}
+
+[D]Leading chord starts the line.
+Trailing chord ends the line[G]
+[D][G][A]
+Split mid[D]word and chari[D]ot again.
+Unicode: naïve café résumé — em dash, don't and runnin'.
+No chords at all on this line.
+[D]
+An unclosed [bracket runs to the end.
+Two  spaces   and	a tab between words.
+
+{start_of_tab}
+e|--0--2--3--|
+B|--[D]not a chord--|
+{end_of_tab}
+
+{start_of_verse}
+After the tab, [C]lyrics resume.
+{end_of_verse}

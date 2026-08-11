@@ -1,0 +1,212 @@
+"""Drive the real server over stdio with a real LSP handshake.
+
+The plumbing is not unit-tested on purpose — mocking pygls would test pygls. This
+speaks the actual protocol to the actual binary instead, and checks the sequence
+that no unit test covers: placeholders while prosodic loads, a refresh request when
+it is ready, then real annotations.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any, BinaryIO
+
+ROOT = Path(__file__).resolve().parent.parent
+FIXTURE = ROOT / "tests" / "fixtures" / "swing_low.cho"
+
+
+def send(stream: BinaryIO, payload: dict[str, Any]) -> None:
+    body = json.dumps(payload).encode()
+    stream.write(b"Content-Length: %d\r\n\r\n%s" % (len(body), body))
+    stream.flush()
+
+
+def receive(stream: BinaryIO) -> dict[str, Any] | None:
+    header = b""
+    while b"\r\n\r\n" not in header:
+        chunk = stream.read(1)
+        if not chunk:
+            return None
+        header += chunk
+    length = int(
+        next(
+            line.split(b":")[1]
+            for line in header.split(b"\r\n")
+            if line.lower().startswith(b"content-length")
+        )
+    )
+    return json.loads(stream.read(length))
+
+
+def await_response(stdin: BinaryIO, stdout: BinaryIO, request_id: int) -> dict[str, Any]:
+    """Read until our response arrives, answering any server->client requests."""
+    while True:
+        message = receive(stdout)
+        if message is None:
+            raise SystemExit("server closed the connection unexpectedly")
+        if message.get("id") == request_id and ("result" in message or "error" in message):
+            return message
+        if "method" in message and "id" in message:  # a request aimed at us
+            send(stdin, {"jsonrpc": "2.0", "id": message["id"], "result": None})
+
+
+def request(stdin: BinaryIO, stdout: BinaryIO, id_: int, method: str, params: Any) -> Any:
+    send(stdin, {"jsonrpc": "2.0", "id": id_, "method": method, "params": params})
+    message = await_response(stdin, stdout, id_)
+    if "error" in message:
+        raise SystemExit(f"{method} failed: {message['error']}")
+    return message["result"]
+
+
+def main() -> int:
+    uri = FIXTURE.as_uri()
+    document = {"textDocument": {"uri": uri}}
+    whole_file = {
+        **document,
+        "range": {"start": {"line": 0, "character": 0}, "end": {"line": 99, "character": 0}},
+    }
+
+    process = subprocess.Popen(
+        [sys.executable, "-m", "melic_lsp.server"],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        cwd=ROOT, env={**os.environ, "PYTHONPATH": str(ROOT / "src")},
+    )
+    assert process.stdin and process.stdout
+    stdin, stdout = process.stdin, process.stdout
+    ok = True
+
+    capabilities = request(
+        stdin, stdout, 1, "initialize",
+        {
+            "processId": None, "rootUri": None,
+            "capabilities": {
+                "workspace": {
+                    "semanticTokens": {"refreshSupport": True},
+                    "inlayHint": {"refreshSupport": True},
+                }
+            },
+            "initializationOptions": {"melic": {"lineSignature": {"mode": "chord-grouped"}}},
+        },
+    )["capabilities"]
+
+    for capability in (
+        "semanticTokensProvider",
+        "inlayHintProvider",
+        "hoverProvider",
+        "diagnosticProvider",
+        "documentSymbolProvider",
+    ):
+        present = capability in capabilities
+        print(f"{capability:<24} {'advertised' if present else 'MISSING'}")
+        ok &= present
+
+    send(stdin, {"jsonrpc": "2.0", "method": "initialized", "params": {}})
+    send(stdin, {
+        "jsonrpc": "2.0", "method": "textDocument/didOpen",
+        "params": {"textDocument": {
+            "uri": uri, "languageId": "chordpro", "version": 1,
+            "text": FIXTURE.read_text(),
+        }},
+    })
+
+    # Before warm-up: placeholders, never a confident zero.
+    early = request(stdin, stdout, 2, "textDocument/inlayHint", whole_file) or []
+    labels = {hint["label"] for hint in early}
+    warming = labels <= {"…"}
+    print(f"{'while warming':<24} {sorted(labels)} "
+          f"{'(placeholders, no false counts)' if warming else ''}")
+    if any("0σ" in label for label in labels):
+        print("  a line reported 0 syllables before it was analysed", file=sys.stderr)
+        ok = False
+
+    # The server asks us to redraw once prosodic is loaded; that is our cue.
+    print(f"{'waiting for warm-up':<24} ...", flush=True)
+    while True:
+        message = receive(stdout)
+        if message is None:
+            raise SystemExit("server closed while warming up")
+        if "id" in message and "method" in message:
+            send(stdin, {"jsonrpc": "2.0", "id": message["id"], "result": None})
+            if message["method"].endswith("/refresh"):
+                print(f"{'refresh requested':<24} {message['method']}")
+                break
+
+    tokens = request(stdin, stdout, 3, "textDocument/semanticTokens/full", document)
+    data = tokens.get("data") if isinstance(tokens, dict) else None
+    print(f"{'semantic tokens':<24} {len(data) // 5 if data else 0} syllables")
+    ok &= bool(data)
+
+    hints = request(stdin, stdout, 4, "textDocument/inlayHint", whole_file) or []
+    print(f"{'inlay hints':<24} {len(hints)}")
+    for hint in hints[:4]:
+        print(f"    line {hint['position']['line']:>2}  {hint['label']}")
+    ok &= bool(hints) and all(hint["label"] != "…" for hint in hints)
+
+    # Hover on "chariot", which the [D] splits in two.
+    line5 = FIXTURE.read_text().splitlines()[5]
+    column = line5.index("chari") + 2
+    hover = request(stdin, stdout, 5, "textDocument/hover", {
+        **document, "position": {"line": 5, "character": column},
+    })
+    body = (hover or {}).get("contents", {}).get("value", "")
+    first = body.splitlines()[0] if body else "<nothing>"
+    print(f"{'hover on chariot':<24} {first}")
+    ok &= "cha" in body and "|" in body  # split word plus the IPA table
+
+    symbols = request(stdin, stdout, 6, "textDocument/documentSymbol", document) or []
+    print(f"{'document symbols':<24} " +
+          ", ".join(f"{s['name']} ({s['detail']})" for s in symbols))
+    ok &= len(symbols) >= 2
+
+    # Diagnostics deserve a document that is actually broken.
+    edges = ROOT / "tests" / "fixtures" / "edges.cho"
+    send(stdin, {
+        "jsonrpc": "2.0", "method": "textDocument/didOpen",
+        "params": {"textDocument": {
+            "uri": edges.as_uri(), "languageId": "chordpro", "version": 1,
+            "text": edges.read_text(),
+        }},
+    })
+    report = request(stdin, stdout, 7, "textDocument/diagnostic",
+                     {"textDocument": {"uri": edges.as_uri()}})
+    items = (report or {}).get("items", [])
+    kinds = {item["message"].split(":")[0].split(".")[0] for item in items}
+    print(f"{'diagnostics':<24} {len(items)} on edges.cho")
+    for message in sorted(kinds)[:4]:
+        print(f"    {message}")
+    ok &= any("Unclosed" in item["message"] for item in items)
+
+    long_song = ROOT / "tests" / "fixtures" / "long_song.cho"
+    send(stdin, {
+        "jsonrpc": "2.0", "method": "textDocument/didOpen",
+        "params": {"textDocument": {
+            "uri": long_song.as_uri(), "languageId": "chordpro", "version": 1,
+            "text": long_song.read_text(),
+        }},
+    })
+    for id_, command in ((8, "melic.compareSections"), (9, "melic.scansionPanel")):
+        panel = request(stdin, stdout, id_, "workspace/executeCommand",
+                        {"command": command, "arguments": [long_song.as_uri()]})
+        body = panel or ""
+        print(f"{command:<24} {len(body.splitlines())} lines")
+        ok &= "Melic —" in body and len(body.splitlines()) > 5
+
+    request(stdin, stdout, 10, "shutdown", None)
+    send(stdin, {"jsonrpc": "2.0", "method": "exit", "params": None})
+    _, err = process.communicate(timeout=60)
+
+    for line in err.decode(errors="replace").splitlines():
+        if "Traceback" in line or "Exception" in line:
+            print(f"  stderr: {line}", file=sys.stderr)
+            ok = False
+
+    print("\nOK" if ok else "\nFAILED")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

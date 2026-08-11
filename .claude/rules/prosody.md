@@ -47,6 +47,12 @@ false-positive rate for almost no extra recall. `rhymes()` encodes that; don't l
 
 `rime_distance` returns `nan` past its cap, so classify with `rime_type`, not the scalar.
 
-Note `rhyme.chimes()` deliberately departs from prosodic on one point: a word does not
-rhyme with itself, which is right about rhyme and wrong about songs. A refrain ending
-"home" every time is the same slot in the scheme.
+`prosody.rhymes()` is the boolean; `rhyme.classify()` is what the features use, and it
+keeps *how* two endings chime as a `Chime` — `PERFECT`, `SLANT` or `IDENTICAL`, rendered
+as ``, `~` and `=`. Do not collapse it back to a boolean: the quality is computed on
+every comparison either way, and throwing it away is the bug this replaced.
+
+`IDENTICAL` is where we deliberately depart from prosodic: a word does not rhyme with
+itself, which is right about rhyme and wrong about songs. A refrain ending "home" every
+time is the same slot in the scheme, and `classify` short-circuits to `IDENTICAL` on
+matching tokens before prosodic is consulted at all.

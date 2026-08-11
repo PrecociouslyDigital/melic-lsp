@@ -16,7 +16,9 @@ from .signature import Mode
 @dataclass(frozen=True)
 class Settings:
     stress_highlight: bool = True
-    signature: Mode = Mode.CHORD_GROUPED
+    signature: Mode = Mode.COUNT_ONLY
+    """Count only by default: stress marks want a column to line up in, and the
+    margin has none. The panels are where patterns are compared."""
     per_syllable_hints: bool = False
     rhyme: bool = True
     chord_aware_syllables: bool = True
@@ -47,7 +49,7 @@ class Settings:
 
         return cls(
             stress_highlight=bool(get("stressHighlight.enabled", True)),
-            signature=_mode(get("lineSignature.mode", Mode.CHORD_GROUPED.value)),
+            signature=_mode(get("lineSignature.mode", Mode.COUNT_ONLY.value)),
             per_syllable_hints=bool(get("inlayHints.perSyllable", False)),
             rhyme=bool(get("rhyme.enabled", True)),
             chord_aware_syllables=bool(get("chordAwareSyllables", True)),
@@ -64,4 +66,4 @@ def _mode(value: Any) -> Mode:
     try:
         return Mode(value)
     except ValueError:
-        return Mode.CHORD_GROUPED
+        return Mode.COUNT_ONLY

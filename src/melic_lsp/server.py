@@ -141,7 +141,7 @@ def document_symbol(
     ls: MelicServer, params: lsp.DocumentSymbolParams
 ) -> list[lsp.DocumentSymbol]:
     model = ls.analyse(params.text_document.uri)
-    return symbols.build(list(model.sections), list(model.lines))
+    return symbols.build(list(model.sections), list(model.lines), model.rhymes)
 
 
 # Deliberately NOT the `melic.compareSections` / `melic.scansionPanel` ids the

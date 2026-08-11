@@ -89,7 +89,8 @@ def main() -> int:
                     "inlayHint": {"refreshSupport": True},
                 }
             },
-            "initializationOptions": {"melic": {"lineSignature": {"mode": "chord-grouped"}}},
+            # No options: the point is to see what a user actually gets.
+            "initializationOptions": {},
         },
     )["capabilities"]
 
@@ -166,6 +167,14 @@ def main() -> int:
         print(f"    line {hint['position']['line']:>2}  {hint['label']}")
     ok &= bool(hints) and all(hint["label"] != "…" for hint in hints)
 
+    # By default the margin carries the count and the rhyme and nothing else. The
+    # stress marks live in the panels, where columns line up and comparing them
+    # actually works.
+    marked = [hint["label"] for hint in hints if "[" in hint["label"]]
+    if marked:
+        print(f"  stress marks in the margin by default: {marked[:2]}", file=sys.stderr)
+        ok = False
+
     # Hover on "chariot", which the [D] splits in two.
     line5 = FIXTURE.read_text().splitlines()[5]
     column = line5.index("chari") + 2
@@ -214,8 +223,10 @@ def main() -> int:
         panel = request(stdin, stdout, id_, "workspace/executeCommand",
                         {"command": command, "arguments": [long_song.as_uri()]})
         body = panel or ""
-        print(f"{command:<24} {len(body.splitlines())} lines")
-        ok &= "Melic —" in body and len(body.splitlines()) > 5
+        # "+" can only be a stress mark: the panels are where those still belong.
+        print(f"{command:<24} {len(body.splitlines())} lines, "
+              f"{'with' if '+' in body else 'NO'} stress marks")
+        ok &= "Melic —" in body and len(body.splitlines()) > 5 and "+" in body
 
     request(stdin, stdout, 8 + len(advertised), "shutdown", None)
     send(stdin, {"jsonrpc": "2.0", "method": "exit", "params": None})

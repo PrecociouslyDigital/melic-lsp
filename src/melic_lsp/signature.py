@@ -30,8 +30,12 @@ class Mode(Enum):
     OFF = "off"
 
 
-def render(analysis: LineAnalysis, mode: Mode = Mode.CHORD_GROUPED) -> str:
-    """Build the end-of-line signature. Empty string means "show nothing"."""
+def render(analysis: LineAnalysis, mode: Mode) -> str:
+    """Build the end-of-line signature. Empty string means "show nothing".
+
+    The mode is required: which one to show is a setting, and a default here could
+    only ever drift from it.
+    """
     if mode is Mode.OFF or not analysis.line.lyric.strip():
         return ""
     if analysis.warming:

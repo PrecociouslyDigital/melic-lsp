@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from melic_lsp import prosody  # noqa: E402
 from melic_lsp.analysis import analyse_line  # noqa: E402
 from melic_lsp.chordpro import parse_document  # noqa: E402
-from melic_lsp.signature import render  # noqa: E402
+from melic_lsp.signature import Mode, render  # noqa: E402
 
 BUDGET_MS = 10.0
 CEILING_MS = 50.0
@@ -49,7 +49,7 @@ def tier1(document_text: str) -> int:
     marks = 0
     for line in parse_document(document_text).lyrics():
         analysis = analyse_line(line)
-        render(analysis)
+        render(analysis, Mode.CHORD_GROUPED)  # the costliest mode, not the default
         marks += analysis.count
     return marks
 

@@ -15,7 +15,7 @@ from typing import assert_never
 from . import prosody
 from .chordpro import Chord, Document, Lyric, parse_document
 from .overrides import EMPTY, Override, Overrides, collect
-from .rhyme import scheme
+from .rhyme import Rhyme, scheme
 from .sections import Section, group
 from .types import (
     LyricCol,
@@ -122,8 +122,8 @@ class DocumentAnalysis:
     document: Document
     sections: tuple[Section, ...]
     lines: tuple[LineAnalysis, ...]
-    rhymes: dict[int, str]
-    """Row -> rhyme letter, scoped per section: a scheme is a property of a stanza."""
+    rhymes: dict[int, Rhyme]
+    """Row -> rhyme, scoped per section: a scheme is a property of a stanza."""
     overrides: Overrides = EMPTY
 
     def by_row(self, row: int) -> LineAnalysis | None:
@@ -136,7 +136,7 @@ def analyse_document(
     document = parse_document(text)
     found = group(document)
     annotations = collect(document, found)
-    labels: dict[int, str] = {}
+    labels: dict[int, Rhyme] = {}
     if rhyming:
         for section in found:
             labels.update(scheme(list(section.lines), lang))

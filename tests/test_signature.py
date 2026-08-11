@@ -14,12 +14,17 @@ from melic_lsp import prosody
 from melic_lsp.analysis import LineAnalysis, PlacedSyllable, Unresolved
 from melic_lsp.analysis import analyse_line
 from melic_lsp.chordpro import parse_lyric, parse_document
+from melic_lsp.settings import Settings
 from melic_lsp.signature import Mode, render
 from melic_lsp.types import LyricCol, Stress, WordSpan
 
 FIXTURE = Path(__file__).parent / "fixtures" / "swing_low.cho"
 
 GOLDEN = [
+    # Chord-grouped is no longer the default — the margin shows the count and the
+    # rhyme — but it is still what the Scansion Panel and Compare Sections print,
+    # so the format is pinned here and asked for explicitly.
+    #
     # "chari[D]ot" reads as cha-ri-ot, not cha-riot: the chord picks the reading
     # that puts the change on a syllable boundary. See test_chord_placement_* below.
     "6σ · + [D]++ [G]+- [D]-",
@@ -40,14 +45,25 @@ def warm() -> None:
         pytest.skip("prosodic could not be loaded")
 
 
-@pytest.mark.requires_prosodic
-def test_golden_signatures(warm: None) -> None:
-    lyrics = [
+def lyrics() -> list:
+    return [
         line
         for line in parse_document(FIXTURE.read_text()).lyrics()
         if line.lyric.strip()
     ]
-    assert [render(analyse_line(line)) for line in lyrics] == GOLDEN
+
+
+@pytest.mark.requires_prosodic
+def test_golden_signatures(warm: None) -> None:
+    grouped = [render(analyse_line(line), Mode.CHORD_GROUPED) for line in lyrics()]
+    assert grouped == GOLDEN
+
+
+@pytest.mark.requires_prosodic
+def test_the_shipped_default_is_just_the_count(warm: None) -> None:
+    """What the margin shows now: no marks to line up where nothing lines up."""
+    default = [render(analyse_line(line), Settings().signature) for line in lyrics()]
+    assert default[:2] == ["6σ", "8σ"]
 
 
 @pytest.mark.requires_prosodic
@@ -110,13 +126,14 @@ def test_modes(mode: Mode, expected: str) -> None:
 def test_warming_never_renders_a_confident_count() -> None:
     analysis = build("abc", "++-")
     warming = LineAnalysis(analysis.line, (), (), warming=True)
-    assert render(warming) == "…"
-    assert "0σ" not in render(warming)
+    assert render(warming, Mode.CHORD_GROUPED) == "…"
+    assert "0σ" not in render(warming, Mode.CHORD_GROUPED)
 
 
 def test_an_unpronounceable_word_marks_the_count_uncertain() -> None:
-    assert render(build("ab[D]cd", "++-", unresolved=True)).startswith("3σ?")
+    signature = render(build("ab[D]cd", "++-", unresolved=True), Mode.CHORD_GROUPED)
+    assert signature.startswith("3σ?")
 
 
 def test_a_line_with_no_lyrics_renders_nothing() -> None:
-    assert render(build("[D][G]", "")) == ""
+    assert render(build("[D][G]", ""), Mode.CHORD_GROUPED) == ""

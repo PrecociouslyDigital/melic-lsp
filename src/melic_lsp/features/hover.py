@@ -146,15 +146,26 @@ def _line_docs(line: Lyric, siblings: list[Lyric], lang: str) -> str:
 
 
 def _rhyme_partners(line: Lyric, siblings: list[Lyric], lang: str) -> str:
+    """The rest of this line's rhyme group, each with how it chimes.
+
+    The quality is the one the scheme measured — against the line that opened the
+    group — which is what the margin's `~` and `=` marks mean too.
+    """
     labels = rhyme.scheme(siblings, lang)
     mine = labels.get(line.row)
     if mine is None:
         return ""
-    return ", ".join(
-        f"line {other.row + 1} (“{other.lyric.strip()}”)"
-        for other in siblings
-        if other.row != line.row and labels.get(other.row) == mine
-    )
+
+    partners = []
+    for other in siblings:
+        label = labels.get(other.row)
+        if other.row == line.row or label is None or label.letter != mine.letter:
+            continue
+        partners.append(
+            f"line {other.row + 1} (“{other.lyric.strip()}”) — "
+            f"{rhyme.DESCRIPTION[label.chime]}"
+        )
+    return ", ".join(partners)
 
 
 # --- Directives --------------------------------------------------------------

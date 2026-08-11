@@ -125,13 +125,13 @@
             "off"
           ],
           "enumDescriptions": [
-            "Stress marks grouped by the chord covering them: 6σ · + [D]++ [G]+-",
-            "Stress marks in one run: 6σ · +++-+-",
-            "Syllable count only: 6σ",
+            "Syllable count plus stress marks grouped by the chord covering them: 6σ · + [D]++ [G]+-",
+            "Syllable count plus stress marks in one run: 6σ · +++-+-",
+            "Syllable count only: 6σ. The stress marks want a column to line up in, which the margin has not; the Scansion Panel and Compare Sections do",
             "No signature"
           ],
-          "default": "chord-grouped",
-          "description": "The signature shown at the end of each lyric line."
+          "default": "count-only",
+          "description": "The signature shown at the end of each lyric line. Rhyme labels are separate — see melic.rhyme.enabled."
         },
         "melic.inlayHints.perSyllable": {
           "type": "boolean",
@@ -141,7 +141,7 @@
         "melic.rhyme.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Label rhyming line endings."
+          "description": "Label rhyming line endings: A, B, … per section, with ~ for a slant rhyme and = for the same word repeated."
         },
         "melic.chordAwareSyllables": {
           "type": "boolean",

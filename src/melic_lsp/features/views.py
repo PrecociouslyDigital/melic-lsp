@@ -9,7 +9,8 @@ request, side by side, it is information instead of an accusation.
 from __future__ import annotations
 
 from ..analysis import DocumentAnalysis, LineAnalysis
-from ..sections import Stack, stacks
+from ..rhyme import Rhyme, scheme_string
+from ..sections import Section, Stack, stacks
 from ..signature import count_label, marks
 
 RULE = "─"
@@ -35,7 +36,7 @@ def compare_sections(model: DocumentAnalysis) -> str:
 
 
 def _stack_block(stack: Stack, model: DocumentAnalysis) -> list[str]:
-    names = " · ".join(section.title for section in stack.sections)
+    names = " · ".join(_titled(section, model.rhymes) for section in stack.sections)
     out = [f"{stack.kind.upper()}  ({len(stack.sections)})  {names}", RULE * WIDTH]
 
     for index, row in enumerate(stack.rows, start=1):
@@ -54,6 +55,12 @@ def _stack_block(stack: Stack, model: DocumentAnalysis) -> list[str]:
         out.append(f"{'':>5}{_verdict(compared)}")
         out.append("")
     return out
+
+
+def _titled(section: Section, rhymes: dict[int, Rhyme]) -> str:
+    """Name plus rhyme scheme, so a verse rhyming unlike its siblings shows here."""
+    scheme = scheme_string(list(section.lines), rhymes)
+    return f"{section.title} ({scheme})" if scheme else section.title
 
 
 def _verdict(analyses: list[LineAnalysis]) -> str:

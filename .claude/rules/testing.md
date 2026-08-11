@@ -30,6 +30,7 @@ one when you meet a new shape.
 | `test_overrides.py` | payload grammar, scope precedence, textual validation | no |
 | `test_prosody.py` | **our guard** (`Tiled` vs `WholeWord`), graceful OOV | some |
 | `test_signature.py` | golden signature strings | yes |
+| `test_rhyme.py` | scheme strings (pure), and which chime we call what | some |
 
 ## Deliberately not tested
 

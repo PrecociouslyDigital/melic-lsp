@@ -11,13 +11,31 @@ This wraps [`quadrismegistus/prosodic`](https://github.com/quadrismegistus/proso
 which already solves the hard linguistic half — in a language server, so the answers
 show up where the writing happens.
 
-## The line signature
+## The margin
 
-The core artifact, shown at the end of each lyric line:
+Shown at the end of each lyric line: how many syllables it has, and what it rhymes with.
 
 ```
-Swing [D]low, sweet [G]chari[D]ot,     5σ · + [D]++ [G]+- [D]
-Comin' for to carry me [A7]home.       8σ · +---+-- [A7]+
+Swing [D]low, sweet [G]chari[D]ot,       6σ A
+Comin' for to carry me [A7]home.         8σ B
+Swing [D]low, sweet [G]chari[D]ot,       6σ A=
+Comin' for to [A7]carry me [D]home.      8σ B=
+```
+
+Letters run `A`, `B`, … per section, so a repeated letter means those endings chime.
+`~` marks a slant rhyme and `=` a line that ends on the same word again — rime riche,
+which in a refrain is usually the point rather than a slip.
+
+A trailing `?` on the count (`6σ?`) means a word had no pronunciation available, so the
+number is a floor rather than a total.
+
+## The stress pattern
+
+`melic.lineSignature.mode` will put the stress marks in the margin too:
+
+```
+Swing [D]low, sweet [G]chari[D]ot,       6σ · + [D]++ [G]+- [D]-
+Comin' for to carry me [A7]home.         8σ · +---+-- [A7]+
 ```
 
 `+` primary stress · `^` secondary · `-` unstressed. Marks are grouped by the chord
@@ -25,8 +43,10 @@ covering them, and a run before the first bracket is sung before any chord. Line
 changes chord every couple of syllables; line two holds one chord for seven. Both scan
 plausibly, and that difference is invisible in the plain text.
 
-A trailing `?` on the count (`6σ?`) means a word had no pronunciation available, so the
-number is a floor rather than a total.
+It is not the default, because an inlay hint sits flush against text of varying length:
+the marks never line up with each other, and lining them up is the whole point of having
+them. `Melic: Scansion Panel` and `Melic: Compare Sections` show them in columns, which
+is where reading one line against another actually works.
 
 ## Telling it how you sing a word
 
@@ -67,11 +87,11 @@ same-length typo gets a warning instead of silently changing how a line scans.
 | | |
 |---|---|
 | **Highlighting** | Syllables coloured by lexical stress, with alternating bands so neighbours stay distinct |
-| **Line signature** | The above, as an end-of-line inlay hint |
-| **Rhyme** | Line endings labelled `a`/`b`/… per section |
-| **Hover** | *word* → syllables, IPA, stress, weight, alternate pronunciations. *blank space* → metrical scan and rhyme partners. *directive* → ChordPro docs |
+| **Line signature** | Syllable count at the end of each line; stress marks on request |
+| **Rhyme** | Line endings labelled `A`/`B`/… per section, `~` slant, `=` the same word again |
+| **Hover** | *word* → syllables, IPA, stress, weight, alternate pronunciations. *blank space* → metrical scan and rhyme partners with their quality. *directive* → ChordPro docs |
 | **Diagnostics** | ChordPro syntax (unclosed `[`/`{`, unknown directive with did-you-mean, unmatched environment), plus chord-lands-mid-syllable and no-pronunciation-available hints |
-| **Outline** | Sections, each with its syllable profile — `Verse 1 · 8,6,8,6σ` |
+| **Outline** | Sections, each with its syllable profile and rhyme scheme — `Verse 1 · 8,6,8,6σ · ABAB` |
 | **Commands** | `Melic: Compare Sections` stacks parallel lines; `Melic: Scansion Panel` shows a chord/syllable/stress grid |
 
 Cross-line comparison is deliberately opt-in. Two verses that disagree on syllable
@@ -104,14 +124,14 @@ crashes.
 ## Settings
 
 All under `melic.*`: `stressHighlight.enabled`, `lineSignature.mode`
-(`chord-grouped` | `flat` | `count-only` | `off`), `inlayHints.perSyllable`,
+(`count-only`, the default | `chord-grouped` | `flat` | `off`), `inlayHints.perSyllable`,
 `rhyme.enabled`, `diagnostics.chordpro`, `diagnostics.chordMidSyllable`,
 `diagnostics.unknownPronunciation`, `lang`, `serverPath`.
 
 ## Development
 
 ```bash
-uv run pytest                      # ~90 tests, ~1.5s
+uv run pytest                      # ~124 tests, ~2s
 ./scripts/check_types.sh           # src/ clean, and wrong-space calls rejected
 ./scripts/check_versions.sh        # pyproject and package.json agree
 uv run python scripts/bench_tier1.py   # gates the caching decision
@@ -156,9 +176,9 @@ types.py       three coordinate spaces as newtypes, and the ADTs
 chordpro.py    parsing and position mapping — no prosodic, no LSP
 prosody.py     the only module that imports prosodic
 analysis.py    joins the two
-signature.py   LineAnalysis -> the string above
+signature.py   LineAnalysis -> a syllable count and stress marks
 sections.py    grouping and parallel-line alignment
-rhyme.py       end-rhyme, from cached word data only
+rhyme.py       end-rhyme and its quality, from cached word data only
 server.py      pygls registration and warm-up
 features/      one module per LSP feature
 ```

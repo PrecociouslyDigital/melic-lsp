@@ -48,7 +48,12 @@ answer `Warming`, and the signature renders `…` rather than a confident `0σ`.
   token per source range. Inexact (`WholeWord`) syllables are skipped, not guessed at.
 - **Signature** lives in `signature.py`; `count_label()` is the single place the `?`
   uncertainty marker is applied. Anywhere showing a syllable count must use it, or a
-  missing dictionary entry reads as a genuinely short line.
+  missing dictionary entry reads as a genuinely short line. `render()` takes its `Mode`
+  with no default on purpose — the default is `Settings.signature` and only there.
+- **The margin defaults to count plus rhyme, not stress marks.** Inlay hints sit flush
+  against text of varying length, so nothing in that column lines up with anything else,
+  and lining marks up is the entire reason to read them. `views.py` shows them in
+  columns instead. `chord-grouped` remains one setting away for anyone who wants it.
 - **Diagnostics** deliberately contain *no* cross-line comparison. Two verses disagreeing
   on syllable count might be a mistake or might be the song, and a squiggle cannot tell.
   Divergence belongs in the compare view, on request. A guessed pronunciation is likewise

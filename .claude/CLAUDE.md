@@ -10,20 +10,26 @@ Two halves, both in this repo:
 - **`src/melic_lsp/`** — the Python LSP server (`pygls`), installed as `melic-lsp`.
 - **`editors/vscode/`** — a thin `vscode-languageclient` extension.
 
-The core artifact is the **line signature**, shown at the end of each lyric line:
+The margin at the end of each lyric line carries the syllable count and the rhyme:
 
 ```
-Swing [D]low, sweet [G]chari[D]ot,     6σ · + [D]++ [G]+- [D]-
-Comin' for to carry me [A7]home.       8σ · +---+-- [A7]+
+Swing [D]low, sweet [G]chari[D]ot,     6σ A
+Comin' for to carry me [A7]home.       8σ B
+Swing [D]low, sweet [G]chari[D]ot,     6σ A=
 ```
 
-`+` primary stress, `^` secondary, `-` unstressed, grouped by the chord covering them.
-A trailing `?` on the count means a word had no pronunciation, so the number is a floor.
+Letters run per section; `~` is a slant rhyme, `=` the same word ending a line again. A
+trailing `?` on the count means a word had no pronunciation, so the number is a floor.
+
+The **line signature** — stress marks grouped by chord, `6σ · + [D]++ [G]+- [D]-` — is
+`melic.lineSignature.mode` away, but it lives properly in the Scansion Panel and Compare
+Sections, which are column-aligned. An inlay hint is not, and comparing patterns line
+against line is the only reason to print them.
 
 # Core dev loop
 
 ```bash
-uv run pytest -q                      # ~111 tests, ~1.5s
+uv run pytest -q                      # ~124 tests, ~2s
 ./scripts/check_types.sh              # ty clean AND wrong-space calls rejected
 ./scripts/check_versions.sh           # pyproject and package.json agree
 uv run python scripts/bench_tier1.py  # gates the no-cache decision

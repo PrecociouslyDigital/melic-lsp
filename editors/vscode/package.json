@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "publisher": "melic",
   "private": true,
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "engines": {
     "vscode": "^1.85.0"
   },

@@ -149,3 +149,20 @@ it ever exceeds 50 ms.
 The metrical parse (`prosodic.Text` + `line.parse()`) costs seconds on first use and is
 kept strictly behind hover, with the model load pre-warmed in the background so the
 first hover isn't a stall.
+
+## License
+
+GPL-3.0-or-later — see [LICENSE](LICENSE).
+
+Copyright (C) 2026 Sydney.
+
+This follows `prosodic`, which this depends on directly. Note that prosodic's package
+metadata declares Apache-2.0 while the LICENSE file it ships is GPLv3; GPL is the safe
+reading either way, since Apache-2.0 is one-way compatible into GPLv3.
+
+This program is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation, either
+version 3 of the License, or (at your option) any later version. It is distributed in
+the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+Public License for more details.

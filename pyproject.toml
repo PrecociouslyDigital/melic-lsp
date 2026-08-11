@@ -3,6 +3,9 @@ name = "melic-lsp"
 version = "0.1.0"
 description = "A prosody language server for ChordPro files"
 readme = "README.md"
+# GPL because prosodic is: importing it makes this a derivative work.
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
     "prosodic>=3.10.0",

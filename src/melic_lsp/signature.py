@@ -14,6 +14,7 @@ from __future__ import annotations
 from enum import Enum
 
 from .analysis import LineAnalysis
+from .rhyme import Rhyme
 
 SYLLABLE = "σ"
 SEPARATOR = " · "
@@ -30,34 +31,46 @@ class Mode(Enum):
     OFF = "off"
 
 
-def render(analysis: LineAnalysis, mode: Mode) -> str:
+def render(analysis: LineAnalysis, mode: Mode, rhyme: Rhyme | None = None) -> str:
     """Build the end-of-line signature. Empty string means "show nothing".
 
     The mode is required: which one to show is a setting, and a default here could
-    only ever drift from it.
+    only ever drift from it. The rhyme is governed by its own setting, so it still
+    shows with the signature turned off — that pairing is the shipped default.
     """
-    if mode is Mode.OFF or not analysis.line.lyric.strip():
+    if not analysis.line.lyric.strip():
         return ""
+    if mode is Mode.OFF:
+        return "" if analysis.warming or rhyme is None else rhyme.label
     if analysis.warming:
         return WARMING
     if not analysis.syllables and not analysis.unresolved:
         return ""
 
-    count = count_label(analysis)
+    count = count_label(analysis, rhyme)
     if mode is Mode.COUNT_ONLY:
         return count
     pattern = marks(analysis, mode)
     return f"{count}{SEPARATOR}{pattern}" if pattern else count
 
 
-def count_label(analysis: LineAnalysis) -> str:
-    """The syllable count, marked uncertain when a word could not be pronounced.
+def count_label(
+    analysis: LineAnalysis, rhyme: Rhyme | None = None, width: int = 0
+) -> str:
+    """The syllable count and its rhyme: "8σ", "8σ?", "6σ A=".
 
     A word we cannot say contributes no syllables, so the total is a floor rather
     than a count. Anywhere that shows the number must show that too, or a missing
-    dictionary entry reads as a short line.
+    dictionary entry reads as a short line. The rhyme travels with it because the
+    two are one label everywhere they appear — margin, outline and compare view.
+
+    ``width`` right-aligns the count *alone*, so a column of these lines up on the
+    σ even where only some of the lines rhyme. Padding the whole label instead
+    would let a rhyme letter shove the number out of its column, and lining the
+    numbers up is the only reason the panels exist.
     """
-    return f"{analysis.count}{SYLLABLE}{INEXACT if analysis.unresolved else ''}"
+    count = f"{analysis.count}{SYLLABLE}{INEXACT if analysis.unresolved else ''}"
+    return f"{count:>{width}} {rhyme.label}" if rhyme is not None else f"{count:>{width}}"
 
 
 def marks(analysis: LineAnalysis, mode: Mode = Mode.CHORD_GROUPED) -> str:

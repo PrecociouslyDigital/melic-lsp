@@ -14,6 +14,7 @@ and displays its information via LSP.
 | **Rhyme**          | Line endings labelled with rhyme, with slant rhyme support     |
 | **Hover**          | Docs and detailed analysis available on hover                  |
 | **Diagnostics**    | ChordPro syntax, chord placement                               |
+| **Outline**        | Sections and their stanzas, each with its syllable profile     |
 | **Analysis**       | tools for chord/syllable/stress grid and cross-work comparison |
 
 ## Line hints
@@ -38,6 +39,28 @@ Comin' for to carry me [A7]home.         8σ · +---+-- [A7]+
 ```
 
 `+` primary stress · `^` secondary · `-` unstressed. 
+
+## The outline
+
+Sections hold stanzas, and a stanza is what a rhyme scheme is measured over — a scheme
+run across four quatrains at once is just noise. A verse of several stanzas says so and
+gives each its own profile:
+
+```
+Verse 1                                 4 stanzas
+  Stanza 1                              7,8,7,6σ · AXAX
+    Countless winter nights ago,             7σ A
+    A woman shivered in the cold.            8σ
+    Cursed the skies, and wondered why       7σ A~
+    The gods invented pain.                  6σ
+```
+
+A verse that *is* one stanza wears the profile itself, with no middle level to open.
+
+Sections come from `{start_of_verse}` and friends — any name works, so
+`{start_of_intro}` is a section too — or, failing a directive, from stanzas separated by
+blank lines. Inside an environment a blank line starts a new stanza rather than ending
+the section, since the directive already said where the section ends.
 
 ## Manual Annotations.
 

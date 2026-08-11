@@ -123,7 +123,7 @@ class DocumentAnalysis:
     sections: tuple[Section, ...]
     lines: tuple[LineAnalysis, ...]
     rhymes: dict[int, Rhyme]
-    """Row -> rhyme, scoped per section: a scheme is a property of a stanza."""
+    """Row -> rhyme, scoped per stanza: a scheme is a property of a stanza."""
     overrides: Overrides = EMPTY
 
     def by_row(self, row: int) -> LineAnalysis | None:
@@ -139,7 +139,8 @@ def analyse_document(
     labels: dict[int, Rhyme] = {}
     if rhyming:
         for section in found:
-            labels.update(scheme(list(section.lines), lang))
+            for stanza in section.stanzas:
+                labels.update(scheme(list(stanza.lines), lang))
     return DocumentAnalysis(
         document,
         tuple(found),

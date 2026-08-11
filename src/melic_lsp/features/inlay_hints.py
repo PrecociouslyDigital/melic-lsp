@@ -48,9 +48,7 @@ def _for_line(
             for source in line.spans.to_source(syllable.start, syllable.end)[:1]
         )
 
-    text = render(analysis, settings.signature)
-    if rhyme is not None and not analysis.warming:
-        text = f"{text} {rhyme.label}" if text else rhyme.label
+    text = render(analysis, settings.signature, rhyme)
     if text:
         hints.append(
             lsp.InlayHint(

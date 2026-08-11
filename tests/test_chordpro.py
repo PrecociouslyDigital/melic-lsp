@@ -11,7 +11,9 @@ from melic_lsp.chordpro import (
     Directive,
     EnvKind,
     Lyric,
+    Value,
     Verbatim,
+    env_label,
     lookup,
     parse_document,
     parse_lyric,
@@ -185,6 +187,52 @@ def test_alias_and_canonical_resolve_to_one_spec() -> None:
     spec = lookup("sot")
     assert spec is not None and spec.env is not None
     assert spec.env.kind is EnvKind.VERBATIM
+
+
+@pytest.mark.parametrize("name", ["start_of_solo", "start_of_intro", "start_of_part_2"])
+def test_any_environment_name_is_legal_and_holds_lyrics(name: str) -> None:
+    """The spec allows any name. Unknown ones are LYRIC: the verbatim environments
+    are a closed set the table already names, and a chords-only {start_of_solo}
+    simply has no lyrics to find."""
+    spec = lookup(name)
+    assert spec is not None and spec.env is not None
+    assert spec.env.kind is EnvKind.LYRIC and spec.env.opens
+    assert spec.value is Value.OPTIONAL
+
+
+def test_a_custom_environment_raises_no_unknown_directive() -> None:
+    (line,) = parse_document("{start_of_intro}").lines
+    assert isinstance(line, Directive) and line.spec is not None
+
+
+def test_a_custom_environment_closes() -> None:
+    spec = lookup("end_of_intro")
+    assert spec is not None and spec.env is not None
+    assert not spec.env.opens and spec.value is Value.NONE
+    assert parse_document("{start_of_intro}\nline\n{end_of_intro}\n").problems == ()
+
+
+def test_a_known_environment_keeps_its_declared_kind() -> None:
+    """The table is consulted first, or {start_of_tab} would become lyrics."""
+    spec = lookup("start_of_tab")
+    assert spec is not None and spec.env is not None
+    assert spec.env.kind is EnvKind.VERBATIM
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ('label="Verse 1"', "Verse 1"),
+        ("label='Verse 1'", "Verse 1"),
+        ("Verse 1", "Verse 1"),
+        ("label=Verse 1", "label=Verse 1"),
+        (None, None),
+    ],
+)
+def test_the_modern_label_syntax_is_unwrapped(
+    value: str | None, expected: str | None
+) -> None:
+    assert env_label(value) == expected
 
 
 # --- Chords ------------------------------------------------------------------

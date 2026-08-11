@@ -29,10 +29,41 @@ def test_blank_lines_split_stanzas_when_there_are_no_directives() -> None:
     assert [len(s.lines) for s in found] == [2, 2]
 
 
-def test_a_blank_line_inside_an_environment_is_just_breathing_room() -> None:
-    """Inside {sov}...{eov} the author said where the section ends; believe them."""
-    found = sections("{sov}\none\n\ntwo\n{eov}\n")
-    assert len(found) == 1 and len(found[0].lines) == 2
+def test_a_blank_line_inside_an_environment_splits_stanzas_not_sections() -> None:
+    """Inside {sov}...{eov} the author said where the section ends; believe them.
+
+    The blank still means something — it is where one stanza stops and the next
+    begins, which is the scope a rhyme scheme is measured over.
+    """
+    (found,) = sections("{sov}\none\n\ntwo\n{eov}\n")
+    assert [len(stanza.lines) for stanza in found.stanzas] == [1, 1]
+    assert len(found.lines) == 2
+
+
+def test_a_blank_line_outside_an_environment_still_splits_sections() -> None:
+    """With no directive there is nothing else to go on, so a stanza is a section."""
+    found = sections("one\n\ntwo\n")
+    assert [len(s.stanzas) for s in found] == [1, 1]
+
+
+def test_a_four_quatrain_verse_is_four_stanzas_in_one_section() -> None:
+    """The case this exists for: a rhyme scheme across all sixteen lines is noise."""
+    quatrains = "\n\n".join("\n".join("abcd") for _ in range(4))
+    (found,) = sections(f"{{sov: Verse 1}}\n{quatrains}\n{{eov}}\n")
+    assert found.title == "Verse 1"
+    assert [len(stanza.lines) for stanza in found.stanzas] == [4, 4, 4, 4]
+    assert (found.start_row, found.end_row) == (1, 19)
+
+
+def test_a_custom_environment_names_its_own_section() -> None:
+    """{start_of_intro} is as legal as a verse, and just as comparable."""
+    found = sections("{start_of_intro}\none\n{end_of_intro}\n")
+    assert [(s.kind, s.title) for s in found] == [("intro", "Intro")]
+
+
+def test_the_modern_label_syntax_is_unwrapped() -> None:
+    found = sections('{sov: label="Verse 1"}\none\n{eov}\n')
+    assert [s.title for s in found] == ["Verse 1"]
 
 
 def test_verbatim_blocks_never_reach_a_section() -> None:
@@ -52,7 +83,25 @@ def test_stacks_keep_only_kinds_with_something_to_compare() -> None:
 def test_ragged_sections_stay_ragged() -> None:
     """An extra line is the divergence worth seeing, not something to pad away."""
     found = sections("{sov: A}\none\n{eov}\n{sov: B}\ntwo\nthree\n{eov}\n")
-    rows = stacks(found)[0].rows
-    assert len(rows) == 2
-    assert rows[1][0] is None
-    assert rows[1][1] is not None and rows[1][1].lyric == "three"
+    (block,) = stacks(found)[0].blocks
+    assert [_lyrics(row) for row in block] == [("one", "two"), (None, "three")]
+
+
+def test_stanzas_line_up_against_stanzas() -> None:
+    """A long verse and a short one compare stanza 2 against stanza 2.
+
+    Aligning on the flat line index would pair "b1" with "a2" and drift from
+    there — which is the whole reason a verse holds stanzas.
+    """
+    found = sections(
+        "{sov: A}\na1\na2\n\nb1\nb2\n{eov}\n{sov: B}\nc1\n\nd1\nd2\n{eov}\n"
+    )
+    blocks = stacks(found)[0].blocks
+    assert [[_lyrics(row) for row in block] for block in blocks] == [
+        [("a1", "c1"), ("a2", None)],
+        [("b1", "d1"), ("b2", "d2")],
+    ]
+
+
+def _lyrics(row: tuple) -> tuple[str | None, ...]:
+    return tuple(line.lyric if line is not None else None for line in row)

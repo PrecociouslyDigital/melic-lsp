@@ -164,12 +164,20 @@ def _build_directives() -> dict[str, DirectiveSpec]:
 DIRECTIVES: dict[str, DirectiveSpec] = _build_directives()
 
 
+_ENVIRONMENT = re.compile(r"(start|end)_of_(\w+)")
+"""The spec allows any name here, so ``{start_of_intro}`` is as legal as a verse."""
+
+_LABEL = re.compile(r"""label\s*=\s*(["'])(.*)\1""")
+
+
 def lookup(name: str) -> DirectiveSpec | None:
     """Resolve a directive name or alias. ``x_*`` is reserved for custom use.
 
     The table is consulted first: our own ``x_melic_*`` directives are registered
     there, and the generic ``x_`` rule would otherwise shadow them with a
-    documentation-free stub.
+    documentation-free stub. The same order matters for environments — the eight
+    named above keep their declared ``EnvKind``, and only names the table has never
+    heard of reach the rule below.
     """
     key = name.strip().lower()
     known = DIRECTIVES.get(key)
@@ -177,7 +185,40 @@ def lookup(name: str) -> DirectiveSpec | None:
         return known
     if key.startswith("x_"):
         return DirectiveSpec(key, (), Category.CUSTOM, Value.OPTIONAL)
-    return None
+    return _environment(key)
+
+
+def _environment(key: str) -> DirectiveSpec | None:
+    """``{start_of_intro}``, ``{start_of_solo}``, or whatever else the song needs.
+
+    Unrecognised environments hold lyrics. The verbatim ones are a closed set the
+    table already names, and a ``{start_of_solo}`` that is nothing but chords simply
+    has no lyrics to find.
+    """
+    match = _ENVIRONMENT.fullmatch(key)
+    if match is None:
+        return None
+    opens = match.group(1) == "start"
+    return DirectiveSpec(
+        key,
+        (),
+        Category.ENVIRONMENT,
+        # The opener may name the section; the closer never carries anything.
+        Value.OPTIONAL if opens else Value.NONE,
+        EnvRole(match.group(2), EnvKind.LYRIC, opens),
+    )
+
+
+def env_label(value: str | None) -> str | None:
+    """What ``{start_of_verse: …}`` called this section, however it was written.
+
+    ChordPro takes both the bare ``Verse 1`` and the newer ``label="Verse 1"``; only
+    the first is already the title.
+    """
+    if value is None:
+        return None
+    match = _LABEL.fullmatch(value.strip())
+    return match.group(2) if match is not None else value
 
 
 # --- Line kinds --------------------------------------------------------------

@@ -14,8 +14,9 @@ from melic_lsp import prosody
 from melic_lsp.analysis import LineAnalysis, PlacedSyllable, Unresolved
 from melic_lsp.analysis import analyse_line
 from melic_lsp.chordpro import parse_lyric, parse_document
+from melic_lsp.rhyme import Chime, Rhyme
 from melic_lsp.settings import Settings
-from melic_lsp.signature import Mode, render
+from melic_lsp.signature import SYLLABLE, Mode, count_label, render
 from melic_lsp.types import LyricCol, Stress, WordSpan
 
 FIXTURE = Path(__file__).parent / "fixtures" / "swing_low.cho"
@@ -121,6 +122,20 @@ def build(text: str, stresses: str, unresolved: bool = False) -> LineAnalysis:
 )
 def test_modes(mode: Mode, expected: str) -> None:
     assert render(build("ab[D]cd", "++-"), mode) == expected
+
+
+def test_the_rhyme_shows_even_with_the_signature_off() -> None:
+    """Two independent settings: turning the marks off is not turning rhyme off."""
+    analysis = build("ab[D]cd", "++-")
+    assert render(analysis, Mode.OFF, Rhyme("A", Chime.SLANT)) == "A~"
+    assert render(analysis, Mode.COUNT_ONLY, Rhyme("A", Chime.SLANT)) == "3σ A~"
+
+
+def test_a_rhyme_never_pushes_the_count_out_of_its_column() -> None:
+    """The panels are read down the σ column, so the letter pads to the right of it."""
+    rhymed = count_label(build("a", "+"), Rhyme("A", Chime.PERFECT), width=4)
+    plain = count_label(build("abcdefghijk", "+" * 11), None, width=4)
+    assert rhymed.index(SYLLABLE) == plain.index(SYLLABLE)
 
 
 def test_warming_never_renders_a_confident_count() -> None:

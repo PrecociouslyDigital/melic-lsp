@@ -9,12 +9,19 @@ request, side by side, it is information instead of an accusation.
 from __future__ import annotations
 
 from ..analysis import DocumentAnalysis, LineAnalysis
+from ..chordpro import Lyric
 from ..rhyme import Rhyme, scheme_string
 from ..sections import Section, Stack, stacks
 from ..signature import count_label, marks
 
 RULE = "─"
 WIDTH = 78
+
+GUTTER = 5
+COUNT = 4
+"""Right-aligns "8σ" under "11σ?" — the column the whole panel is read down."""
+LABEL = COUNT + 3
+"""That count plus its rhyme: " 11σ B~". The lyric starts after it."""
 
 
 def compare_sections(model: DocumentAnalysis) -> str:
@@ -39,28 +46,49 @@ def _stack_block(stack: Stack, model: DocumentAnalysis) -> list[str]:
     names = " · ".join(_titled(section, model.rhymes) for section in stack.sections)
     out = [f"{stack.kind.upper()}  ({len(stack.sections)})  {names}", RULE * WIDTH]
 
-    for index, row in enumerate(stack.rows, start=1):
-        out.append(f"{index:>3}.")
-        compared: list[LineAnalysis] = []
-        for line, section in zip(row, stack.sections):
-            if line is None:
-                out.append(f"{'':>5}{'—':>4}   {section.title}: (no line here)")
-                continue
-            analysis = model.by_row(line.row)
-            if analysis is None:
-                continue
-            compared.append(analysis)
-            out.append(f"{'':>5}{count_label(analysis):>4}   {line.lyric.strip()}")
-            out.append(f"{'':>12}{marks(analysis)}")
-        out.append(f"{'':>5}{_verdict(compared)}")
-        out.append("")
+    blocks = stack.blocks
+    for number, block in enumerate(blocks, start=1):
+        # Stanzas line up against stanzas, so a section with an extra one does not
+        # shift every line below it out of alignment with its counterpart.
+        if len(blocks) > 1:
+            out.append(f"Stanza {number}")
+        for index, row in enumerate(block, start=1):
+            out.extend(_row(index, row, stack, model))
+    return out
+
+
+def _row(
+    index: int, row: tuple[Lyric | None, ...], stack: Stack, model: DocumentAnalysis
+) -> list[str]:
+    """One line of every section in the stack, and whether they agree."""
+    out = [f"{index:>3}."]
+    compared: list[LineAnalysis] = []
+    for line, section in zip(row, stack.sections):
+        if line is None:
+            missing = f"{'—':>{COUNT}}".ljust(LABEL)
+            out.append(f"{'':>{GUTTER}}{missing}   {section.title}: (no line here)")
+            continue
+        analysis = model.by_row(line.row)
+        if analysis is None:
+            continue
+        compared.append(analysis)
+        label = count_label(analysis, model.rhymes.get(line.row), COUNT)
+        out.append(f"{'':>{GUTTER}}{label:<{LABEL}}   {line.lyric.strip()}")
+        out.append(f"{'':>{GUTTER + LABEL + 3}}{marks(analysis)}")
+    out.append(f"{'':>{GUTTER}}{_verdict(compared)}")
+    out.append("")
     return out
 
 
 def _titled(section: Section, rhymes: dict[int, Rhyme]) -> str:
-    """Name plus rhyme scheme, so a verse rhyming unlike its siblings shows here."""
-    scheme = scheme_string(list(section.lines), rhymes)
-    return f"{section.title} ({scheme})" if scheme else section.title
+    """Name plus rhyme scheme, so a verse rhyming unlike its siblings shows here.
+
+    One scheme per stanza, since that is the scope the letters were handed out in;
+    running them together would read as one long pattern that nothing measured.
+    """
+    schemes = [scheme_string(list(s.lines), rhymes) for s in section.stanzas]
+    found = " / ".join(scheme for scheme in schemes if scheme)
+    return f"{section.title} ({found})" if found else section.title
 
 
 def _verdict(analyses: list[LineAnalysis]) -> str:

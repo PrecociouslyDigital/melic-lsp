@@ -35,9 +35,16 @@ The trailing empty line after a final newline is kept on purpose: the editor sho
 each start/end pair from one row. Environments carry `EnvKind.LYRIC` or
 `EnvKind.VERBATIM`, which is what excludes tab and grid blocks from analysis.
 
-**`lookup()` checks the table before the `x_` rule.** Our own `x_melic_*` directives are
-registered, and the generic "anything starting with `x_` is custom" fallback would
-otherwise shadow them with a documentation-free stub.
+**`lookup()` checks the table before its two generic rules.** Our own `x_melic_*`
+directives are registered, and the "anything starting with `x_` is custom" fallback would
+otherwise shadow them with a documentation-free stub. The same order matters for
+environments: the spec allows `{start_of_x}` for any `x`, so `_environment()` resolves
+whatever the table has never heard of — `{start_of_intro}`, `{start_of_solo}` — as
+`EnvKind.LYRIC`. Unknown means lyrics because the verbatim environments are a closed set
+the table already names, and a solo that is nothing but chords has no lyrics to find.
+
+`env_label()` unwraps the modern `{start_of_verse: label="Verse 1"}` to `Verse 1`, and is
+the one place a section's name is read out of a directive value.
 
 ## Manual overrides
 
@@ -57,7 +64,21 @@ Two things to preserve:
 
 ## Sections
 
-Explicit environments win; otherwise blank lines mark stanzas. A blank line *inside* an
-environment does not split it — the author already said where the section ends. Ragged
-tails in `Stack.rows` are left ragged, since a verse with an extra line is exactly the
-divergence worth seeing.
+**Section → stanza → line.** A `{start_of_verse}` holding four quatrains is one section
+of four stanzas, not a sixteen-line verse: a rhyme scheme measured across all four is
+noise, and `analysis.py` labels rhymes per *stanza*.
+
+One rule builds both levels: **a blank line ends the stanza, and outside an environment
+it ends the section too.** Outside one there is nothing else to go on, so an undirected
+song is a run of single-stanza sections — exactly the shape it had before stanzas
+existed. `Section.lines` flattens, for the callers that want it whole.
+
+Anything scoped by rhyme must use the **stanza**: `server.py` hands hover the enclosing
+stanza's lines, or hover would name partners the margin never labelled. `overrides.py` is
+the opposite case and correctly uses the section — `{x_melic_word_section}` means the
+whole verse.
+
+`Stack.blocks` aligns stanza against stanza, then line against line inside each, so a
+sixteen-line verse compared with an eight-line one does not pair line 1 with line 1 and
+drift from there. Ragged tails are left ragged, since a stanza with an extra line is
+exactly the divergence worth seeing.

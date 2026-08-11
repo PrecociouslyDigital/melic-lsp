@@ -109,10 +109,19 @@ def hover_(ls: MelicServer, params: lsp.HoverParams) -> lsp.Hover | None:
     line = next((l for l in model.document.lines if l.row == row), None)
     if line is None:
         return None
-    section = next(
-        (s for s in model.sections if s.start_row <= row <= s.end_row), None
+    # The enclosing stanza, not the section: hover names this line's rhyme partners,
+    # and the letters were handed out per stanza. A wider scope would name partners
+    # the margin never labelled.
+    stanza = next(
+        (
+            stanza
+            for section in model.sections
+            for stanza in section.stanzas
+            if stanza.start_row <= row <= stanza.end_row
+        ),
+        None,
     )
-    siblings = list(section.lines) if section else []
+    siblings = list(stanza.lines) if stanza else []
     return hover.build(
         line,
         SrcCol(params.position.character),

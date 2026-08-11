@@ -2,6 +2,9 @@
 
 A [Chordpro](http://chordpro.org/) language server, designed for songwriting.
 
+![Demo Screenshot](./docs/Screenshot.png)
+
+
 This wraps [`quadrismegistus/prosodic`](https://github.com/quadrismegistus/prosodic)
 and displays its information via LSP.
 

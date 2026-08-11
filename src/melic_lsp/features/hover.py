@@ -12,25 +12,47 @@ from lsprotocol import types as lsp
 
 from .. import prosody, rhyme
 from ..chordpro import Category, Directive, Line, Lyric, Value
+from ..overrides import EMPTY, Override, Overrides
 from ..types import Ready, SrcCol, Syllabified, Tiled, Unavailable, Warming
 
 SYLLABLE_SEP = "·"
 
 
 def build(
-    line: Line, column: SrcCol, siblings: list[Lyric], lang: str
+    line: Line,
+    column: SrcCol,
+    siblings: list[Lyric],
+    lang: str,
+    annotations: Overrides = EMPTY,
 ) -> lsp.Hover | None:
     match line:
         case Directive():
             return _markdown(_directive_docs(line))
         case Lyric():
-            return _lyric_hover(line, column, siblings, lang)
+            return _lyric_hover(line, column, siblings, lang, annotations)
         case _:
             return None
 
 
+def _override_docs(override: Override) -> str:
+    """Say plainly that this reading was written by hand, not looked up."""
+    split = SYLLABLE_SEP.join(override.texts)
+    marks = (
+        "".join(stress.value for stress in override.stresses)
+        if override.stresses is not None
+        else "taken from the dictionary reading of the same length"
+    )
+    return "\n\n".join(
+        [
+            f"**{split}** — {len(override.texts)} syllables",
+            f"Stress `{marks}`",
+            f"<sub>set by hand on line {override.row + 1}, not inferred</sub>",
+        ]
+    )
+
+
 def _lyric_hover(
-    line: Lyric, column: SrcCol, siblings: list[Lyric], lang: str
+    line: Lyric, column: SrcCol, siblings: list[Lyric], lang: str, annotations: Overrides
 ) -> lsp.Hover | None:
     for chord in line.chords:
         if chord.source.start <= column < chord.source.end:
@@ -40,6 +62,9 @@ def _lyric_hover(
     if lyric_column is not None:
         for word in line.words():
             if word.start <= lyric_column < word.end:
+                override = annotations.find(word.token, line.row)
+                if override is not None:
+                    return _markdown(_override_docs(override))
                 return _markdown(_word_docs(word.token, lang))
 
     return _markdown(_line_docs(line, siblings, lang))

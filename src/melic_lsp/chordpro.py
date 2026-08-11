@@ -125,6 +125,11 @@ _SIMPLE: tuple[tuple[str, tuple[str, ...], Category, Value], ...] = (
     ("titles", (), Category.OUTPUT, Value.REQUIRED),
     ("grid", ("g",), Category.OUTPUT, Value.OPTIONAL),
     ("no_grid", ("ng",), Category.OUTPUT, Value.OPTIONAL),
+    # Ours. Registered rather than left to the generic x_ rule so they get real
+    # hover documentation and turn up in did-you-mean suggestions.
+    ("x_melic_word", (), Category.CUSTOM, Value.REQUIRED),
+    ("x_melic_word_section", (), Category.CUSTOM, Value.REQUIRED),
+    ("x_melic_word_line", (), Category.CUSTOM, Value.REQUIRED),
 )
 
 
@@ -160,11 +165,19 @@ DIRECTIVES: dict[str, DirectiveSpec] = _build_directives()
 
 
 def lookup(name: str) -> DirectiveSpec | None:
-    """Resolve a directive name or alias. ``x_*`` is reserved for custom use."""
+    """Resolve a directive name or alias. ``x_*`` is reserved for custom use.
+
+    The table is consulted first: our own ``x_melic_*`` directives are registered
+    there, and the generic ``x_`` rule would otherwise shadow them with a
+    documentation-free stub.
+    """
     key = name.strip().lower()
+    known = DIRECTIVES.get(key)
+    if known is not None:
+        return known
     if key.startswith("x_"):
         return DirectiveSpec(key, (), Category.CUSTOM, Value.OPTIONAL)
-    return DIRECTIVES.get(key)
+    return None
 
 
 # --- Line kinds --------------------------------------------------------------

@@ -20,9 +20,11 @@ from melic_lsp.types import LyricCol, Stress, WordSpan
 FIXTURE = Path(__file__).parent / "fixtures" / "swing_low.cho"
 
 GOLDEN = [
-    "5σ · + [D]++ [G]+- [D]",
+    # "chari[D]ot" reads as cha-ri-ot, not cha-riot: the chord picks the reading
+    # that puts the change on a syllable boundary. See test_chord_placement_* below.
+    "6σ · + [D]++ [G]+- [D]-",
     "8σ · +---+-- [A7]+",
-    "5σ · + [D]++ [G]+- [D]",
+    "6σ · + [D]++ [G]+- [D]-",
     "8σ · +--- [A7]+-- [D]+",
     "11σ · - [D]++-+-- [G]--- [D]+",
     "8σ · +---+-- [A7]+",
@@ -49,16 +51,29 @@ def test_golden_signatures(warm: None) -> None:
 
 
 @pytest.mark.requires_prosodic
-def test_a_chord_inside_a_syllable_leaves_its_group_empty(warm: None) -> None:
-    """``chari[D]ot`` reads as cha-riot, so the D lands mid-syllable and covers none.
+def test_chord_placement_picks_the_reading_that_fits_it(warm: None) -> None:
+    """``chari[D]ot`` chooses cha-ri-ot, so the D lands on a boundary and covers ``ot``.
 
-    The empty group is the honest rendering, and the same condition is what the
-    chord-mid-syllable diagnostic reports.
+    Prosodic prefers cha-riot knowing nothing about the music; the chord says
+    otherwise, and the chord is the better evidence about how it is sung.
     """
     analysis = analyse_line(parse_lyric(0, "sweet [G]chari[D]ot,"))
     groups = analysis.groups()
     assert groups[-1].chord is not None and groups[-1].chord.name == "D"
-    assert groups[-1].syllables == ()
+    assert [s.text for s in groups[-1].syllables] == ["ot"]
+
+
+@pytest.mark.requires_prosodic
+def test_without_a_chord_inside_it_the_dictionary_reading_stands(warm: None) -> None:
+    """The tie-break is what keeps this from changing behaviour everywhere else."""
+    analysis = analyse_line(parse_lyric(0, "sweet [G]chariot,"))
+    assert [s.text for s in analysis.syllables[1:]] == ["cha", "riot"]
+
+
+@pytest.mark.requires_prosodic
+def test_the_choice_can_be_turned_off(warm: None) -> None:
+    analysis = analyse_line(parse_lyric(0, "sweet [G]chari[D]ot,"), chord_aware=False)
+    assert [s.text for s in analysis.syllables[1:]] == ["cha", "riot"]
 
 
 # --- Modes, without prosodic -------------------------------------------------

@@ -14,6 +14,7 @@ from lsprotocol import types as lsp
 
 from ..analysis import LineAnalysis
 from ..chordpro import DIRECTIVES, Directive, Document, Lyric
+from ..overrides import EMPTY, Overrides
 from ..settings import Settings
 from ..types import LyricCol, SrcCol
 
@@ -21,14 +22,28 @@ SOURCE = "melic"
 
 
 def build(
-    document: Document, analyses: list[LineAnalysis], settings: Settings
+    document: Document,
+    analyses: list[LineAnalysis],
+    settings: Settings,
+    annotations: Overrides = EMPTY,
 ) -> list[lsp.Diagnostic]:
     found: list[lsp.Diagnostic] = []
     if settings.chordpro_diagnostics:
         found.extend(_syntax(document))
+        found.extend(
+            _at(
+                problem.row, SrcCol(0), SrcCol(len(_text(document, problem.row))),
+                problem.message, lsp.DiagnosticSeverity.Warning,
+            )
+            for problem in annotations.problems
+        )
     for analysis in analyses:
         found.extend(_lints(analysis, settings))
     return found
+
+
+def _text(document: Document, row: int) -> str:
+    return next((line.text for line in document.lines if line.row == row), "")
 
 
 # --- ChordPro syntax ---------------------------------------------------------
@@ -105,6 +120,9 @@ def _lints(analysis: LineAnalysis, settings: Settings) -> list[lsp.Diagnostic]:
                         lsp.DiagnosticSeverity.Information,
                     )
                 )
+
+    for note in analysis.notes:
+        found.extend(_span_hint(line, note.span.start, note.span.end, note.message))
 
     if settings.unknown_pronunciation == "hint":
         for missing in analysis.unresolved:

@@ -28,6 +28,40 @@ plausibly, and that difference is invisible in the plain text.
 A trailing `?` on the count (`6σ?`) means a word had no pronunciation available, so the
 number is a floor rather than a total.
 
+## Telling it how you sing a word
+
+Two mechanisms, in order of authority.
+
+**Chord placement decides between readings.** Prosodic offers several pronunciations
+and prefers one knowing nothing about the music. Where a chord interrupts a word, that
+placement is evidence: `chari[D]ot` means *cha·ri·ot*, because that is the reading where
+the chord change lands on a syllable boundary rather than inside one. Ties keep
+prosodic's own preference, so this only speaks up when the chords disagree with it.
+Disable with `melic.chordAwareSyllables`.
+
+**You can just say so.** Three directives, differing only in scope:
+
+```
+{x_melic_word: chariot = +cha -ri -ot}      the whole document
+{x_melic_word_section: fire = +fire}        the enclosing section
+{x_melic_word_line: fire = +fi -re}         the next lyric line
+```
+
+Precedence runs line → section → document → chord-aware → dictionary. Stress glyphs are
+the same ones the signature prints: `+` primary, `^` secondary, `-` unstressed. Leave
+them off (`chariot = cha ri ot`) to fix the split and keep the stress, which is taken
+from whichever pronunciation has the same number of syllables — if none does, the word
+reads as unstressed and says so rather than inventing a pattern.
+
+The syllables must spell the word. This is checked textually, not just by length, so a
+same-length typo gets a warning instead of silently changing how a line scans.
+
+> **A caveat worth testing yourself.** The ChordPro spec reserves `x_*` for custom use,
+> but not every renderer ignores what it doesn't recognise — `vschordpro` renders unknown
+> directives as grey text, so these will show up in its preview. `#` comment lines are
+> dropped by every renderer, and moving the annotations there is a one-function change in
+> `overrides.py` (`_annotations`) if your reader turns out to display them.
+
 ## Features
 
 | | |

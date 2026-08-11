@@ -19,6 +19,8 @@ class Settings:
     signature: Mode = Mode.CHORD_GROUPED
     per_syllable_hints: bool = False
     rhyme: bool = True
+    chord_aware_syllables: bool = True
+    """Let chord placement pick between a word's pronunciations."""
     chordpro_diagnostics: bool = True
     chord_mid_syllable: bool = True
     unknown_pronunciation: Literal["hint", "off"] = "hint"
@@ -48,6 +50,7 @@ class Settings:
             signature=_mode(get("lineSignature.mode", Mode.CHORD_GROUPED.value)),
             per_syllable_hints=bool(get("inlayHints.perSyllable", False)),
             rhyme=bool(get("rhyme.enabled", True)),
+            chord_aware_syllables=bool(get("chordAwareSyllables", True)),
             chordpro_diagnostics=bool(get("diagnostics.chordpro", True)),
             chord_mid_syllable=bool(get("diagnostics.chordMidSyllable", True)),
             unknown_pronunciation=(

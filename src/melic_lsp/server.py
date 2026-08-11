@@ -41,7 +41,12 @@ class MelicServer(LanguageServer):
         document cache would only add invalidation bugs.
         """
         document = self.workspace.get_text_document(uri)
-        return analyse_document(document.source, self.settings.lang, self.settings.rhyme)
+        return analyse_document(
+            document.source,
+            self.settings.lang,
+            self.settings.rhyme,
+            self.settings.chord_aware_syllables,
+        )
 
 
 server = MelicServer()
@@ -108,7 +113,13 @@ def hover_(ls: MelicServer, params: lsp.HoverParams) -> lsp.Hover | None:
         (s for s in model.sections if s.start_row <= row <= s.end_row), None
     )
     siblings = list(section.lines) if section else []
-    return hover.build(line, SrcCol(params.position.character), siblings, ls.settings.lang)
+    return hover.build(
+        line,
+        SrcCol(params.position.character),
+        siblings,
+        ls.settings.lang,
+        model.overrides,
+    )
 
 
 @server.feature(lsp.TEXT_DOCUMENT_DIAGNOSTIC)
@@ -119,7 +130,9 @@ def diagnostic(
     invalidation to get wrong."""
     model = ls.analyse(params.text_document.uri)
     return lsp.RelatedFullDocumentDiagnosticReport(
-        items=diagnostics.build(model.document, list(model.lines), ls.settings)
+        items=diagnostics.build(
+            model.document, list(model.lines), ls.settings, model.overrides
+        )
     )
 
 

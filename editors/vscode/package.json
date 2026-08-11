@@ -143,6 +143,11 @@
           "default": true,
           "description": "Label rhyming line endings."
         },
+        "melic.chordAwareSyllables": {
+          "type": "boolean",
+          "default": true,
+          "description": "Where a chord interrupts a word, prefer the pronunciation that puts the chord change on a syllable boundary rather than inside one. Turn off to always use the dictionary's preferred reading."
+        },
         "melic.diagnostics.chordpro": {
           "type": "boolean",
           "default": true,

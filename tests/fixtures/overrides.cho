@@ -1,0 +1,17 @@
+{title: Annotated}
+{artist: Melic}
+
+# "fire" is the classic one: sung as one syllable or two depending on the tune.
+{x_melic_word: fire = +fi -re}
+
+{start_of_verse: Verse 1}
+{x_melic_word_section: fire = +fire}
+The [Am]fire is out, the [F]night is cold,
+A [C]single fire against the [G]dark.
+{end_of_verse}
+
+{start_of_verse: Verse 2}
+Two [Am]syllables of fire here,
+{x_melic_word_line: fire = +fi -re}
+And [C]fire again, but slower now.
+{end_of_verse}

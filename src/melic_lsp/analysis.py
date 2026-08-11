@@ -8,15 +8,18 @@ so unresolved tokens are carried alongside the results rather than replacing the
 from __future__ import annotations
 
 from bisect import bisect_right
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import assert_never
 
 from . import prosody
 from .chordpro import Chord, Document, Lyric, parse_document
+from .overrides import EMPTY, Override, Overrides, collect
 from .rhyme import scheme
 from .sections import Section, group
 from .types import (
     LyricCol,
+    RawSyllable,
     Ready,
     Stress,
     Syllabified,
@@ -25,6 +28,7 @@ from .types import (
     Warming,
     WholeWord,
     WordSpan,
+    tile,
 )
 
 
@@ -51,6 +55,14 @@ class Unresolved:
 
 
 @dataclass(frozen=True)
+class Note:
+    """Something worth mentioning about a word that is not an error."""
+
+    span: WordSpan
+    message: str
+
+
+@dataclass(frozen=True)
 class ChordGroup:
     """The syllables one chord covers. ``chord is None`` is the run sung before any."""
 
@@ -70,6 +82,9 @@ class LineAnalysis:
     warming: bool
     guessed: tuple[WordSpan, ...] = ()
     """Words espeak guessed rather than looked up; worth a hint, not a warning."""
+    overridden: tuple[WordSpan, ...] = ()
+    """Words read from a manual annotation rather than inferred."""
+    notes: tuple[Note, ...] = ()
     """True when tier 0 had not finished; the counts below are not yet meaningful."""
 
     @property
@@ -111,14 +126,18 @@ class DocumentAnalysis:
     lines: tuple[LineAnalysis, ...]
     rhymes: dict[int, str]
     """Row -> rhyme letter, scoped per section: a scheme is a property of a stanza."""
+    overrides: Overrides = EMPTY
 
     def by_row(self, row: int) -> LineAnalysis | None:
         return next((line for line in self.lines if line.line.row == row), None)
 
 
-def analyse_document(text: str, lang: str = "en", rhyming: bool = True) -> DocumentAnalysis:
+def analyse_document(
+    text: str, lang: str = "en", rhyming: bool = True, chord_aware: bool = True
+) -> DocumentAnalysis:
     document = parse_document(text)
     found = group(document)
+    annotations = collect(document, found)
     labels: dict[int, str] = {}
     if rhyming:
         for section in found:
@@ -126,21 +145,123 @@ def analyse_document(text: str, lang: str = "en", rhyming: bool = True) -> Docum
     return DocumentAnalysis(
         document,
         tuple(found),
-        tuple(analyse_line(line, lang) for line in document.lyrics()),
+        tuple(
+            analyse_line(line, lang, chord_aware, annotations)
+            for line in document.lyrics()
+        ),
         labels,
+        annotations,
     )
 
 
-def analyse_line(line: Lyric, lang: str = "en") -> LineAnalysis:
+def _splits(syllabified: Syllabified, start: LyricCol, onsets: Sequence[LyricCol]) -> int:
+    """How many of this reading's syllables a chord lands inside.
+
+    A chord at lyric column ``c`` interrupts syllable ``[s, e)`` exactly when
+    ``s < c < e`` — strictly inside, so a chord sitting on a syllable boundary is
+    the good case and counts for nothing.
+    """
+    if not isinstance(syllabified, Tiled):
+        return 0
+    return sum(
+        1
+        for syllable in syllabified.syllables
+        for chord in onsets
+        if start + syllable.start < chord < start + syllable.end
+    )
+
+
+def _read(
+    word: prosody.Word, span: WordSpan, onsets: Sequence[LyricCol], chord_aware: bool
+) -> Syllabified:
+    """Pick the reading of a word that best fits where its chords fall.
+
+    Prosodic offers several pronunciations and prefers one without knowing anything
+    about the music. Where a chord interrupts a word, that placement is evidence
+    about how the writer means to sing it: ``chari[D]ot`` says cha-ri-ot, because
+    that is the reading where the chord change lands on a syllable rather than
+    inside one. Ties keep prosodic's own order, so this only ever speaks up when
+    the chords actually disagree with it.
+    """
+    if not chord_aware or len(word.variants) < 2:
+        return word.syllables
+    interior = [chord for chord in onsets if span.start < chord < span.end]
+    if not interior:
+        return word.syllables
+    return min(word.variants, key=lambda v: _splits(v, span.start, interior))
+
+
+def _apply(
+    override: Override, word: prosody.Word | None
+) -> tuple[Syllabified, str | None]:
+    """Turn a hand-written reading into syllables, keeping stress honest.
+
+    When no stress glyphs were written the intent is "fix the split, keep the
+    stress", so we take it from whichever pronunciation has the same number of
+    syllables. If none does there is nothing to inherit, and inventing a pattern —
+    first-syllable-primary, say — would quietly mis-stress *away* and *guitar*. It
+    reads as unstressed instead, and says so.
+    """
+    note: str | None = None
+    stresses = override.stresses
+    if stresses is None:
+        match = next(
+            (
+                variant
+                for variant in (word.variants if word else ())
+                if len(variant.syllables) == len(override.texts)
+            ),
+            None,
+        )
+        if match is not None:
+            stresses = tuple(syllable.stress for syllable in match.syllables)
+        else:
+            stresses = tuple(Stress.NONE for _ in override.texts)
+            note = (
+                f"No stress given for “{override.token}” and no "
+                f"{len(override.texts)}-syllable pronunciation to take it from. "
+                "Mark it with +, ^ or - to say."
+            )
+
+    parts = [
+        RawSyllable(text, "", stress)
+        for text, stress in zip(override.texts, stresses)
+    ]
+    # Validated at parse time to spell the token, so this always tiles.
+    return tile("".join(override.texts), parts), note
+
+
+def analyse_line(
+    line: Lyric,
+    lang: str = "en",
+    chord_aware: bool = True,
+    overrides: Overrides = EMPTY,
+) -> LineAnalysis:
     syllables: list[PlacedSyllable] = []
     unresolved: list[Unresolved] = []
     guessed: list[WordSpan] = []
+    overridden: list[WordSpan] = []
+    notes: list[Note] = []
     warming = False
 
+    onsets = [chord.lyric for chord in line.chords]
     for span in line.words():
-        match prosody.syllabify(span.token, lang):
+        override = overrides.find(span.token, line.row)
+        result = prosody.syllabify(span.token, lang)
+
+        if override is not None:
+            # A manual annotation wins outright: it is the one source here that
+            # actually knows how the song goes.
+            reading, note = _apply(override, result.value if isinstance(result, Ready) else None)
+            syllables.extend(_place(span, reading))
+            overridden.append(span)
+            if note is not None:
+                notes.append(Note(span, note))
+            continue
+
+        match result:
             case Ready(word):
-                syllables.extend(_place(span, word.syllables))
+                syllables.extend(_place(span, _read(word, span, onsets, chord_aware)))
                 if word.guessed:
                     guessed.append(span)
             case Unavailable(reason):
@@ -149,7 +270,13 @@ def analyse_line(line: Lyric, lang: str = "en") -> LineAnalysis:
                 warming = True
 
     return LineAnalysis(
-        line, tuple(syllables), tuple(unresolved), warming, tuple(guessed)
+        line,
+        tuple(syllables),
+        tuple(unresolved),
+        warming,
+        tuple(guessed),
+        tuple(overridden),
+        tuple(notes),
     )
 
 

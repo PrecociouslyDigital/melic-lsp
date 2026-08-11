@@ -199,6 +199,27 @@ def test_chord_positions_and_onsets() -> None:
         assert line.lyric[chord.lyric : chord.lyric + 3] in ("low", "cha", "ot,")
 
 
+@pytest.mark.parametrize(
+    "chord_column,split",
+    [(0, False), (3, False), (7, False), (1, True), (2, True)],
+)
+def test_a_chord_on_a_syllable_boundary_does_not_split_it(
+    chord_column: int, split: bool
+) -> None:
+    """The off-by-one the chord-aware reading turns on.
+
+    A chord landing *between* syllables is the good case — that is the whole point
+    of preferring it — so only strictly-interior columns may count as a split.
+    """
+    from melic_lsp.analysis import _splits
+    from melic_lsp.types import RawSyllable, Stress, tile
+
+    # "cat" + "nip": boundaries at 0, 3 and 6, offset to lyric column 1.
+    word = tile("catnip", [RawSyllable(t, "", Stress.NONE) for t in ("cat", "nip")])
+    counted = _splits(word, LyricCol(1), [LyricCol(chord_column + 1)])
+    assert bool(counted) is split
+
+
 def test_words_are_located_in_lyric_space() -> None:
     line = parse_lyric(0, "Comin' for to [A7]carry me [D]home.")
     words = line.words()

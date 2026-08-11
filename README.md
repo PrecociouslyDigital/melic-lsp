@@ -79,9 +79,39 @@ All under `melic.*`: `stressHighlight.enabled`, `lineSignature.mode`
 ```bash
 uv run pytest                      # ~90 tests, ~1.5s
 ./scripts/check_types.sh           # src/ clean, and wrong-space calls rejected
+./scripts/check_versions.sh        # pyproject and package.json agree
 uv run python scripts/bench_tier1.py   # gates the caching decision
 uv run python scripts/smoke_lsp.py     # real LSP handshake against the real server
 ```
+
+CI runs all of these on every push, with the server suite run **twice** — once with
+espeak installed and once without. Both are supported configurations and the
+degradation path is easy to break without noticing.
+
+### Releasing
+
+```bash
+./scripts/check_versions.sh v0.2.0     # after bumping both version fields
+git tag v0.2.0 && git push --tags
+```
+
+The tag must match the version in `pyproject.toml` and `editors/vscode/package.json`;
+CI refuses the release otherwise. That builds the `.vsix`, runs the full suite, and
+attaches the package to a GitHub Release — no configuration required beyond having a
+GitHub remote.
+
+Publishing to the extension registries is **opt-in**: each step is skipped unless its
+secret exists, so nothing below is needed to cut a release.
+
+| Target | Secret | What it takes |
+|---|---|---|
+| GitHub Release | — | Works out of the box. Users install with `code --install-extension melic-lsp-*.vsix` |
+| VS Code Marketplace | `VSCE_PAT` | An Azure DevOps organisation, a publisher created at [manage](https://marketplace.visualstudio.com/manage), and a PAT scoped to **Marketplace → Manage**. The `publisher` field in `editors/vscode/package.json` must match the publisher ID you register — it currently says `melic` |
+| Open VSX | `OVSX_TOKEN` | An [open-vsx.org](https://open-vsx.org) account, a signed Eclipse Contributor Agreement, and an access token. This is the registry VSCodium and other forks use |
+
+Also worth adding before publishing anywhere: a `repository` field in the extension's
+`package.json` (CI passes `--allow-missing-repository` until there is a remote to point
+at), and an icon.
 
 ### How it's put together
 

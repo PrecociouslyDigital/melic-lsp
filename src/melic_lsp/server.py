@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 from lsprotocol import types as lsp
@@ -21,7 +22,10 @@ from .features.semantic_tokens import LEGEND, encode
 from .settings import Settings
 from .types import SrcCol, Unavailable
 
-VERSION = "0.1.0"
+try:
+    VERSION = version("melic-lsp")
+except PackageNotFoundError:  # a source checkout that was never installed
+    VERSION = "0.0.0+dev"
 
 
 class MelicServer(LanguageServer):

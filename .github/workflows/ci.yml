@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+  # So a release can run exactly these checks rather than a copy of them.
+  workflow_call:
+
+jobs:
+  server:
+    # espeak is prosodic's fallback for words its dictionary does not know, and
+    # lyrics are full of those. Both states are supported, so both are tested:
+    # with it absent, out-of-vocabulary words must degrade to a hint rather than
+    # crash or hang, and that path is easy to break without noticing.
+    name: server (espeak ${{ matrix.espeak }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        espeak: [absent, present]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install espeak
+        if: matrix.espeak == 'present'
+        run: sudo apt-get update && sudo apt-get install -y espeak
+
+      - run: uv sync --frozen
+
+      - name: Tests
+        run: uv run pytest -q
+
+      - name: Type check, and prove the coordinate newtypes still bite
+        run: ./scripts/check_types.sh
+
+      - name: Tier 1 benchmark
+        # Gates the no-line-cache decision. Fails only above 50ms, so runner
+        # variance is noise rather than a flaky build.
+        run: uv run python scripts/bench_tier1.py
+
+      - name: LSP smoke test
+        # A real handshake against the real server: warming placeholders, the
+        # refresh once prosodic loads, then tokens, hints, hover and commands.
+        run: uv run python scripts/smoke_lsp.py
+
+  extension:
+    name: extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+
+      - name: Versions must agree
+        run: ./scripts/check_versions.sh
+
+      - run: npm ci
+        working-directory: editors/vscode
+
+      - run: npx tsc -p ./ --noEmit
+        working-directory: editors/vscode
+
+      - name: Package
+        # --allow-missing-repository until this has a git remote to point at.
+        run: npx @vscode/vsce package --allow-missing-repository
+        working-directory: editors/vscode
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: melic-lsp-vsix
+          path: editors/vscode/*.vsix
+          if-no-files-found: error

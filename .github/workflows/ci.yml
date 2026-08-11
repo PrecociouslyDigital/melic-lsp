@@ -87,12 +87,45 @@ jobs:
         run: bundled/python/bin/python3.12 scripts/smoke_lsp.py
 
   extension:
+    # The cheap half, on every push and pull request. Packaging is the `package` job
+    # below, which most runs skip.
+    name: extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+
+      - name: Versions must agree
+        run: ./scripts/check_versions.sh
+
+      - run: npm ci
+        working-directory: editors/vscode
+
+      - run: npm run check-types
+        working-directory: editors/vscode
+
+  package:
     # One VSIX per platform, because the bundled interpreter and the compiled wheels
     # beside it only run on the one they were built for. The marketplace serves each
     # user the build matching their machine, so nobody downloads four they cannot run.
     # All of them cross-build from this one runner — uv resolves both the wheels and
     # the interpreter for a named target — so this is a matrix, not a fleet.
-    name: extension (${{ matrix.target }})
+    #
+    # Five interpreters and five dependency trees is minutes of build and hundreds of
+    # megabytes of artifact, and a VSIX nobody installs is worth neither. So: only for
+    # a release tag, or when someone deliberately asks. `github.ref` and the event both
+    # carry through `workflow_call`, so a tagged run of release.yml lands here as a
+    # push to refs/tags/v*, and a manual run of either workflow as a dispatch.
+    #
+    # What actually guards a release is the `bundle` job above, which runs every time.
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: extension
+    name: package (${{ matrix.target }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -112,13 +145,7 @@ jobs:
           cache: npm
           cache-dependency-path: editors/vscode/package-lock.json
 
-      - name: Versions must agree
-        run: ./scripts/check_versions.sh
-
       - run: npm ci
-        working-directory: editors/vscode
-
-      - run: npm run check-types
         working-directory: editors/vscode
 
       - name: Bundle the server for ${{ matrix.target }}

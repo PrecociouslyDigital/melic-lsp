@@ -109,6 +109,8 @@ uv run python scripts/bench_tier1.py   # gates the caching decision
 uv run python scripts/smoke_lsp.py     # real LSP handshake against the real server
 ```
 
-Note that `uv tool install .` installs a **snapshot**. Inside this workspace the
-extension prefers `.venv`, so edits are picked up on restart; anywhere else it uses the
-globally installed copy, which needs `uv tool install . --force` to catch up.
+To reload during development, run
+
+```bash
+uv tool install . --force --reinstall
+```

@@ -14,6 +14,7 @@ from __future__ import annotations
 import contextlib
 import sys
 import threading
+import warnings
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
@@ -79,7 +80,14 @@ def warm_up(lang: str = "en") -> None:
             # Prosodic warns about missing espeak on stderr, which is fine, but a
             # single stray print to stdout from any of its ~30 dependencies would
             # corrupt the JSON-RPC stream and be miserable to diagnose. Cheap guard.
-            with contextlib.redirect_stdout(sys.stderr):
+            #
+            # SyntaxWarning is silenced for the same reason one layer up: panphon
+            # has a docstring holding an unescaped ``\w``, so compiling it emits a
+            # warning the user can do nothing about. It fires only when the
+            # bytecode cache is cold — once per install — and lands in the editor's
+            # output channel looking like something broke.
+            with contextlib.redirect_stdout(sys.stderr), warnings.catch_warnings():
+                warnings.simplefilter("ignore", SyntaxWarning)
                 from prosodic.langs import get_word
 
                 get_word("the", lang)

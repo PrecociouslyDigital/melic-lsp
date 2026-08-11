@@ -54,8 +54,21 @@ real debugging time:
 2. **Server command ids and palette command ids must be disjoint.** A language client
    auto-registers an editor command for every id the server advertises; sharing one
    crashes initialization before anything renders. `smoke_lsp.py` checks this.
-3. **`uv tool install .` installs a snapshot.** After changing the server, anywhere
-   outside this workspace still runs the old copy until `uv tool install . --force`.
+3. **`uv tool install .` installs a snapshot, and `--force` is not enough to refresh
+   it.** Anywhere outside this workspace runs the globally installed copy, and uv caches
+   the built wheel under `melic-lsp==<version>`. The version rarely changes, so `--force`
+   happily reinstalls the *same cached wheel* and the code never updates — silently, with
+   a success message. Use **`uv tool install . --force --reinstall`**, then verify against
+   the installed interpreter rather than trusting the output:
+
+   ```bash
+   uv tool install . --force --reinstall
+   "$(uv tool dir)/melic-lsp/bin/python" -c "from melic_lsp.chordpro import lookup; print(lookup('start_of_anything'))"
+   ```
+
+   The in-workspace `.venv` is an editable install pointing at `src/`, so it is never
+   stale; only the global copy drifts, which is why this hides until you open a file
+   outside the repo.
 4. **Never memoise a `Warming` result.** The cache deliberately sits *behind* the
    readiness check in `prosody.py`.
 

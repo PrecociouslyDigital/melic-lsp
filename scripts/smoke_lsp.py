@@ -228,14 +228,24 @@ def main() -> int:
               f"{'with' if '+' in body else 'NO'} stress marks")
         ok &= "Melic —" in body and len(body.splitlines()) > 5 and "+" in body
 
+    # Editors cancel requests they no longer need, and ours are answered long
+    # before the cancel arrives. That race is normal and unactionable, so it must
+    # not shout in the output channel.
+    send(stdin, {"jsonrpc": "2.0", "method": "$/cancelRequest", "params": {"id": 4}})
+
     request(stdin, stdout, 8 + len(advertised), "shutdown", None)
     send(stdin, {"jsonrpc": "2.0", "method": "exit", "params": None})
     _, err = process.communicate(timeout=60)
 
-    for line in err.decode(errors="replace").splitlines():
+    stderr = err.decode(errors="replace")
+    for line in stderr.splitlines():
         if "Traceback" in line or "Exception" in line:
             print(f"  stderr: {line}", file=sys.stderr)
             ok = False
+
+    noisy = "Cancel notification for unknown" in stderr
+    print(f"{'late cancel':<24} {'NOISY' if noisy else 'quiet'}")
+    ok &= not noisy
 
     print("\nOK" if ok else "\nFAILED")
     return 0 if ok else 1

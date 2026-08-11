@@ -165,8 +165,25 @@ def scansion_panel(ls: MelicServer, uri: str) -> str:
     return views.scansion_panel(ls.analyse(uri))
 
 
+LATE_CANCEL = "Cancel notification for unknown message id"
+
+
+def quiet_late_cancels() -> None:
+    """Stop pygls warning about a cancel for a request that already finished.
+
+    Every handler here answers synchronously, so a ``$/cancelRequest`` can only
+    reach us after we have replied — the client cancels on the next keystroke and we
+    were done before it asked. There is nothing to cancel and nothing to act on, but
+    it lands in the editor's output channel at WARNING, several times per boot.
+    """
+    logging.getLogger("pygls.protocol.json_rpc").addFilter(
+        lambda record: not record.getMessage().startswith(LATE_CANCEL)
+    )
+
+
 def main() -> None:
     server.settings = Settings()
+    quiet_late_cancels()
     server.start_io()
 
 

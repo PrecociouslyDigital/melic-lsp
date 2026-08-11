@@ -109,9 +109,7 @@ secret exists, so nothing below is needed to cut a release.
 | VS Code Marketplace | `VSCE_PAT` | An Azure DevOps organisation, a publisher created at [manage](https://marketplace.visualstudio.com/manage), and a PAT scoped to **Marketplace → Manage**. The `publisher` field in `editors/vscode/package.json` must match the publisher ID you register — it currently says `melic` |
 | Open VSX | `OVSX_TOKEN` | An [open-vsx.org](https://open-vsx.org) account, a signed Eclipse Contributor Agreement, and an access token. This is the registry VSCodium and other forks use |
 
-Also worth adding before publishing anywhere: a `repository` field in the extension's
-`package.json` (CI passes `--allow-missing-repository` until there is a remote to point
-at), and an icon.
+Worth adding before publishing to a registry: an icon for the extension.
 
 ### How it's put together
 

@@ -104,7 +104,7 @@ We welcome contributions! We currently only ship an extension for VSCode:
 ```bash
 uv sync
 cd editors/vscode && npm install && cd -
-brew install espeak      # optional; see below
+brew install espeak
 ```
 
 Then F5 in `editors/vscode` to open an Extension Development Host.

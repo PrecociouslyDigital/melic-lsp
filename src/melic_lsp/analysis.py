@@ -80,8 +80,6 @@ class LineAnalysis:
     syllables: tuple[PlacedSyllable, ...]
     unresolved: tuple[Unresolved, ...]
     warming: bool
-    guessed: tuple[WordSpan, ...] = ()
-    """Words espeak guessed rather than looked up; worth a hint, not a warning."""
     overridden: tuple[WordSpan, ...] = ()
     """Words read from a manual annotation rather than inferred."""
     notes: tuple[Note, ...] = ()
@@ -239,7 +237,6 @@ def analyse_line(
 ) -> LineAnalysis:
     syllables: list[PlacedSyllable] = []
     unresolved: list[Unresolved] = []
-    guessed: list[WordSpan] = []
     overridden: list[WordSpan] = []
     notes: list[Note] = []
     warming = False
@@ -262,8 +259,6 @@ def analyse_line(
         match result:
             case Ready(word):
                 syllables.extend(_place(span, _read(word, span, onsets, chord_aware)))
-                if word.guessed:
-                    guessed.append(span)
             case Unavailable(reason):
                 unresolved.append(Unresolved(span, reason))
             case Warming():
@@ -274,7 +269,6 @@ def analyse_line(
         tuple(syllables),
         tuple(unresolved),
         warming,
-        tuple(guessed),
         tuple(overridden),
         tuple(notes),
     )

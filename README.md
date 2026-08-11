@@ -70,7 +70,7 @@ same-length typo gets a warning instead of silently changing how a line scans.
 | **Line signature** | The above, as an end-of-line inlay hint |
 | **Rhyme** | Line endings labelled `a`/`b`/… per section |
 | **Hover** | *word* → syllables, IPA, stress, weight, alternate pronunciations. *blank space* → metrical scan and rhyme partners. *directive* → ChordPro docs |
-| **Diagnostics** | ChordPro syntax (unclosed `[`/`{`, unknown directive with did-you-mean, unmatched environment), plus chord-lands-mid-syllable and guessed-pronunciation hints |
+| **Diagnostics** | ChordPro syntax (unclosed `[`/`{`, unknown directive with did-you-mean, unmatched environment), plus chord-lands-mid-syllable and no-pronunciation-available hints |
 | **Outline** | Sections, each with its syllable profile — `Verse 1 · 8,6,8,6σ` |
 | **Commands** | `Melic: Compare Sections` stacks parallel lines; `Melic: Scansion Panel` shows a chord/syllable/stress grid |
 

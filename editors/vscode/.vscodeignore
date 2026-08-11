@@ -1,9 +1,8 @@
-# Ship the compiled extension and its runtime deps, nothing else.
+# Dependencies are bundled into out/extension.js, so none of the sources or the
+# node_modules tree they came from need shipping.
+node_modules/**
 src/**
 .vscode/**
 tsconfig.json
 **/*.map
 **/*.ts
-**/tsconfig.json
-node_modules/typescript/**
-node_modules/@types/**

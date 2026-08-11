@@ -125,16 +125,12 @@ def _lints(analysis: LineAnalysis, settings: Settings) -> list[lsp.Diagnostic]:
         found.extend(_span_hint(line, note.span.start, note.span.end, note.message))
 
     if settings.unknown_pronunciation == "hint":
+        # Only words with no pronunciation at all, where the syllable count is a
+        # floor rather than a total. A *guessed* pronunciation is not flagged: it
+        # yields a real count, and marking every invented word in a lyric sheet is
+        # noise you learn to ignore. If a guess is wrong, {x_melic_word} fixes it.
         for missing in analysis.unresolved:
             found.extend(_span_hint(line, missing.span.start, missing.span.end, missing.reason))
-        for span in analysis.guessed:
-            found.extend(
-                _span_hint(
-                    line, span.start, span.end,
-                    f"“{span.token}” is not in the dictionary; "
-                    "its pronunciation was guessed.",
-                )
-            )
 
     return found
 

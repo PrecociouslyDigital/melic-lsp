@@ -69,10 +69,11 @@ jobs:
       - run: npm ci
         working-directory: editors/vscode
 
-      - run: npx tsc -p ./ --noEmit
+      - run: npm run check-types
         working-directory: editors/vscode
 
       - name: Package
+        # vsce runs vscode:prepublish, which type checks and bundles.
         run: npx @vscode/vsce package
         working-directory: editors/vscode
 

@@ -165,7 +165,7 @@
             "off"
           ],
           "default": "hint",
-          "description": "Note words whose pronunciation had to be guessed, or was unavailable."
+          "description": "Note words with no pronunciation available, whose syllables therefore go uncounted. Words espeak guessed are not flagged — use {x_melic_word} if a guess is wrong."
         },
         "melic.lang": {
           "type": "string",
@@ -181,9 +181,10 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "check-types": "tsc -p ./ --noEmit",
+    "compile": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "watch": "npm run compile -- --watch",
+    "vscode:prepublish": "npm run check-types && npm run compile -- --minify"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
@@ -191,6 +192,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
+    "esbuild": "^0.28.2",
     "typescript": "^5.3.3"
   }
 }

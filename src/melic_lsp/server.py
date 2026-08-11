@@ -131,8 +131,13 @@ def document_symbol(
     return symbols.build(list(model.sections), list(model.lines))
 
 
-COMPARE_SECTIONS = "melic.compareSections"
-SCANSION_PANEL = "melic.scansionPanel"
+# Deliberately NOT the `melic.compareSections` / `melic.scansionPanel` ids the
+# extension puts in the command palette. A language client auto-registers an
+# editor command for every id the server advertises here, so sharing them makes
+# both sides claim the same id and the second registration throws, taking the
+# whole session down. These are the RPC entry points; the palette ids wrap them.
+COMPARE_SECTIONS = "melic.server.compareSections"
+SCANSION_PANEL = "melic.server.scansionPanel"
 
 
 # pygls spreads executeCommand arguments across the handler's parameters and

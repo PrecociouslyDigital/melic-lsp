@@ -104,6 +104,26 @@ def main() -> int:
         print(f"{capability:<24} {'advertised' if present else 'MISSING'}")
         ok &= present
 
+    # A language client registers an editor command for every id the server
+    # advertises. If the extension also contributes one of those ids, the second
+    # registration throws and the whole session dies before a single hint renders
+    # — which no amount of talking to the server on its own would reveal.
+    advertised = set(
+        (capabilities.get("executeCommandProvider") or {}).get("commands", [])
+    )
+    manifest = json.loads(
+        (ROOT / "editors" / "vscode" / "package.json").read_text()
+    )
+    contributed = {
+        entry["command"] for entry in manifest["contributes"].get("commands", [])
+    }
+    clash = advertised & contributed
+    print(f"{'command ids':<24} {len(advertised)} server, {len(contributed)} palette"
+          f"{'  CLASH: ' + ', '.join(sorted(clash)) if clash else ', disjoint'}")
+    if clash:
+        print(f"  these ids would be registered twice: {sorted(clash)}", file=sys.stderr)
+        ok = False
+
     send(stdin, {"jsonrpc": "2.0", "method": "initialized", "params": {}})
     send(stdin, {
         "jsonrpc": "2.0", "method": "textDocument/didOpen",
@@ -188,14 +208,16 @@ def main() -> int:
             "text": long_song.read_text(),
         }},
     })
-    for id_, command in ((8, "melic.compareSections"), (9, "melic.scansionPanel")):
+    # Driven off what the server advertises, so a renamed command cannot quietly
+    # stop being exercised here.
+    for id_, command in enumerate(sorted(advertised), start=8):
         panel = request(stdin, stdout, id_, "workspace/executeCommand",
                         {"command": command, "arguments": [long_song.as_uri()]})
         body = panel or ""
         print(f"{command:<24} {len(body.splitlines())} lines")
         ok &= "Melic —" in body and len(body.splitlines()) > 5
 
-    request(stdin, stdout, 10, "shutdown", None)
+    request(stdin, stdout, 8 + len(advertised), "shutdown", None)
     send(stdin, {"jsonrpc": "2.0", "method": "exit", "params": None})
     _, err = process.communicate(timeout=60)
 

@@ -74,8 +74,8 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     { dispose: () => void client?.stop() },
     vscode.workspace.registerTextDocumentContentProvider(PANEL_SCHEME, panels),
-    registerPanel("melic.compareSections", "Compare Sections"),
-    registerPanel("melic.scansionPanel", "Scansion")
+    registerPanel("melic.compareSections", "melic.server.compareSections", "Compare Sections"),
+    registerPanel("melic.scansionPanel", "melic.server.scansionPanel", "Scansion")
   );
 }
 
@@ -93,8 +93,17 @@ const panels: vscode.TextDocumentContentProvider = {
   provideTextDocumentContent: (uri) => contents.get(uri.toString()) ?? "",
 };
 
-function registerPanel(command: string, title: string): vscode.Disposable {
-  return vscode.commands.registerCommand(command, async () => {
+/**
+ * Wires a palette command to a server command. The two ids must differ: the
+ * language client already registers an editor command for every id the server
+ * advertises, so reusing one here would collide and fail initialization.
+ */
+function registerPanel(
+  paletteCommand: string,
+  serverCommand: string,
+  title: string
+): vscode.Disposable {
+  return vscode.commands.registerCommand(paletteCommand, async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor || editor.document.languageId !== "chordpro") {
       vscode.window.showInformationMessage("Melic: open a ChordPro file first.");
@@ -105,7 +114,7 @@ function registerPanel(command: string, title: string): vscode.Disposable {
     }
 
     const text = await client.sendRequest<string>("workspace/executeCommand", {
-      command,
+      command: serverCommand,
       arguments: [editor.document.uri.toString()],
     });
 

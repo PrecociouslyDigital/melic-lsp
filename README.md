@@ -88,6 +88,10 @@ CI runs all of these on every push, with the server suite run **twice** — once
 espeak installed and once without. Both are supported configurations and the
 degradation path is easy to break without noticing.
 
+Note that `uv tool install .` installs a **snapshot**. Inside this workspace the
+extension prefers `.venv`, so edits are picked up on restart; anywhere else it uses the
+globally installed copy, which needs `uv tool install . --force` to catch up.
+
 ### Releasing
 
 ```bash

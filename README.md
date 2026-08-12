@@ -112,7 +112,7 @@ A vim binding might be a good first contribution 👀
 
 We have a basic test suite, and a bit of custom tooling for types
 ```bash
-uv run pytest                      # ~124 tests, ~2s
+uv run pytest                      # ~2s
 ./scripts/check_types.sh           # src/ clean, and wrong-space calls rejected
 ./scripts/check_versions.sh        # pyproject and package.json agree
 uv run python scripts/bench_tier1.py   # gates the caching decision

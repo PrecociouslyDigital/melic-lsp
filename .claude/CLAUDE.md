@@ -35,7 +35,7 @@ against line is the only reason to print them.
 # Core dev loop
 
 ```bash
-uv run pytest -q                      # ~124 tests, ~2s
+uv run pytest -q                      # ~2s
 ./scripts/check_types.sh              # ty clean AND wrong-space calls rejected
 ./scripts/check_versions.sh           # pyproject and package.json agree
 uv run python scripts/bench_tier1.py  # gates the no-cache decision

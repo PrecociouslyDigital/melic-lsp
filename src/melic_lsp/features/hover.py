@@ -192,7 +192,13 @@ def _directive_docs(directive: Directive) -> str:
     if spec is None:
         return f"**`{{{directive.name}}}`** — not a ChordPro directive."
 
-    lines = [f"**`{{{spec.canonical}}}`** — {spec.category.name.lower()}"]
+    header = f"**`{{{spec.canonical}}}`** — {spec.category.name.lower()}"
+    if spec.doc is not None:
+        # A documented directive describes itself, and says it better than the
+        # fields below would: our own carry a worked example of their grammar.
+        return f"{header}\n\n{spec.doc}"
+
+    lines = [header]
     if spec.aliases:
         lines.append(f"Also written {', '.join(f'`{a}`' for a in spec.aliases)}.")
     if spec.value is Value.REQUIRED:

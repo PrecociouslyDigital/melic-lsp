@@ -27,15 +27,18 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from .chordpro import Directive, Document, Lyric
+from .chordpro import (
+    MELIC_SCHEME,
+    MELIC_WORD,
+    MELIC_WORD_LINE,
+    MELIC_WORD_SECTION,
+    Directive,
+    Document,
+    Lyric,
+)
 from .rhyme import canonical_pattern
 from .sections import Section
 from .types import Stress
-
-DOCUMENT = "x_melic_word"
-SECTION = "x_melic_word_section"
-LINE = "x_melic_word_line"
-SCHEME = "x_melic_scheme"
 
 _GLYPHS = {stress.value: stress for stress in Stress}
 
@@ -133,7 +136,11 @@ def collect(document: Document, sections: Sequence[Section]) -> Overrides:
     return Overrides(by_row, globals_, schemes, tuple(problems))
 
 
-_NAMES = {Scope.DOCUMENT: DOCUMENT, Scope.SECTION: SECTION, Scope.LINE: LINE}
+_NAMES = {
+    Scope.DOCUMENT: MELIC_WORD,
+    Scope.SECTION: MELIC_WORD_SECTION,
+    Scope.LINE: MELIC_WORD_LINE,
+}
 
 
 def _annotations(document: Document, name: str) -> list[tuple[int, str]]:
@@ -231,7 +238,7 @@ def _schemes(
     found: dict[int, SchemeDeclaration] = {}
     problems: list[Problem] = []
 
-    for row, payload in _annotations(document, SCHEME):
+    for row, payload in _annotations(document, MELIC_SCHEME):
         parsed = _parse_scheme(row, payload)
         if isinstance(parsed, Problem):
             problems.append(parsed)

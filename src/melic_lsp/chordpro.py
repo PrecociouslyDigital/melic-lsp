@@ -23,6 +23,9 @@ class Category(Enum):
     FONT = auto()
     OUTPUT = auto()
     CUSTOM = auto()
+    """Someone else's ``x_`` directive: spec-legal, and nothing here reads it."""
+    MELIC = auto()
+    """Ours. Also an ``x_`` directive, but this is the tool that acts on it."""
 
 
 class EnvKind(Enum):
@@ -52,6 +55,10 @@ class DirectiveSpec:
     category: Category
     value: Value
     env: EnvRole | None = None
+    doc: str | None = None
+    """What this directive means, for hover. Only ours carry it: ChordPro's own are
+    described well enough by the fields above, and a stranger's ``x_`` directive is
+    something we can say nothing about."""
 
     @property
     def names(self) -> tuple[str, ...]:
@@ -125,12 +132,64 @@ _SIMPLE: tuple[tuple[str, tuple[str, ...], Category, Value], ...] = (
     ("titles", (), Category.OUTPUT, Value.REQUIRED),
     ("grid", ("g",), Category.OUTPUT, Value.OPTIONAL),
     ("no_grid", ("ng",), Category.OUTPUT, Value.OPTIONAL),
-    # Ours. Registered rather than left to the generic x_ rule so they get real
-    # hover documentation and turn up in did-you-mean suggestions.
-    ("x_melic_word", (), Category.CUSTOM, Value.REQUIRED),
-    ("x_melic_word_section", (), Category.CUSTOM, Value.REQUIRED),
-    ("x_melic_word_line", (), Category.CUSTOM, Value.REQUIRED),
-    ("x_melic_scheme", (), Category.CUSTOM, Value.REQUIRED),
+)
+
+# --- Ours --------------------------------------------------------------------
+#
+# Registered rather than left to the generic ``x_`` rule, so that they turn up in
+# did-you-mean suggestions and hover can say what they do. `overrides.py` reads
+# the names from here and this table carries the documentation, so a directive
+# cannot be added, renamed or left undocumented in one place only.
+
+MELIC_WORD = "x_melic_word"
+MELIC_WORD_SECTION = "x_melic_word_section"
+MELIC_WORD_LINE = "x_melic_word_line"
+MELIC_SCHEME = "x_melic_scheme"
+
+
+def _word_doc(covers: str, example: str) -> str:
+    """The three word annotations differ only in how far they reach."""
+    return "\n\n".join(
+        [
+            f"How a word is split and stressed, for {covers}.",
+            f"`{{{example}}}`",
+            "`+` primary, `^` secondary, `-` unstressed. Write the syllables bare to "
+            "correct the split alone and keep the dictionary reading's stress.",
+            "Precedence: line, then section, then document, then what melic worked out.",
+        ]
+    )
+
+
+# (canonical, documentation). All four take a value; none has an alias.
+_MELIC: tuple[tuple[str, str], ...] = (
+    (
+        MELIC_WORD,
+        _word_doc("the whole document", f"{MELIC_WORD}: chariot = +cha -ri -ot"),
+    ),
+    (
+        MELIC_WORD_SECTION,
+        _word_doc("the enclosing section", f"{MELIC_WORD_SECTION}: fire = +fire"),
+    ),
+    (
+        MELIC_WORD_LINE,
+        _word_doc("the next lyric line", f"{MELIC_WORD_LINE}: fire = +fi -re"),
+    ),
+    (
+        MELIC_SCHEME,
+        "\n\n".join(
+            [
+                "The rhyme pattern a stanza means to have.",
+                f"`{{{MELIC_SCHEME}: ABAB}}` — the enclosing section, or the next "
+                f"one.  \n`{{{MELIC_SCHEME}: chorus = ABAB}}` — every chorus in the "
+                "song.",
+                "It covers the stanzas whose length matches the pattern. `X` marks a "
+                "line meant to rhyme with nothing.",
+                "An expectation, not an instruction: it corroborates a near rhyme the "
+                "sounds already allow, and the `rhymeSchemeMismatch` hint measures the "
+                "stanza against it. It cannot make two words rhyme.",
+            ]
+        ),
+    ),
 )
 
 
@@ -138,6 +197,10 @@ def _build_directives() -> dict[str, DirectiveSpec]:
     specs: list[DirectiveSpec] = [
         DirectiveSpec(name, aliases, category, value)
         for name, aliases, category, value in _SIMPLE
+    ]
+    specs += [
+        DirectiveSpec(name, (), Category.MELIC, Value.REQUIRED, doc=doc)
+        for name, doc in _MELIC
     ]
     for env, start_aliases, end_aliases, kind in _ENVIRONMENTS:
         specs.append(

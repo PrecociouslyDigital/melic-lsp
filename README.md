@@ -17,6 +17,7 @@ and displays its information via LSP.
 | **Rhyme**          | Line endings labelled with rhyme, with slant rhyme support     |
 | **Hover**          | Docs and detailed analysis available on hover                  |
 | **Diagnostics**    | ChordPro syntax, chord placement                               |
+| **Quick fixes**    | Move a chord onto the start of the syllable it landed inside   |
 | **Hints**          | Opt-out notes where a stanza drifts from the shape of its siblings |
 | **Outline**        | Sections and their stanzas, each with its syllable profile     |
 | **Analysis**       | tools for chord/syllable/stress grid and cross-work comparison |

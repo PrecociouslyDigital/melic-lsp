@@ -169,7 +169,7 @@
         "melic.diagnostics.chordMidSyllable": {
           "type": "boolean",
           "default": true,
-          "description": "Report a chord that lands inside a syllable rather than before it."
+          "description": "Report a chord that lands inside a syllable rather than before it, and offer the quick fix that moves it to the start of that syllable."
         },
         "melic.diagnostics.unknownPronunciation": {
           "type": "string",

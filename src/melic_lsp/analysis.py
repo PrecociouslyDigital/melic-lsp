@@ -21,6 +21,7 @@ from .types import (
     LyricCol,
     RawSyllable,
     Ready,
+    SrcRange,
     Stress,
     Syllabified,
     Tiled,
@@ -75,6 +76,22 @@ class ChordGroup:
 
 
 @dataclass(frozen=True)
+class Interruption:
+    """A syllable a chord lands *inside*, instead of on the boundary before it.
+
+    ``chords`` holds every one that does, in the order they were typed, because
+    ``c[D]h[G]ariot`` interrupts the same syllable twice and each is separately
+    movable. ``source`` is the syllable as typed — from its first character to its
+    last, the interrupting chords included — which is the one lyric-to-source hop
+    both the lint and its quick fix would otherwise each make for themselves.
+    """
+
+    syllable: PlacedSyllable
+    chords: tuple[Chord, ...]
+    source: SrcRange
+
+
+@dataclass(frozen=True)
 class LineAnalysis:
     line: Lyric
     syllables: tuple[PlacedSyllable, ...]
@@ -92,6 +109,34 @@ class LineAnalysis:
     @property
     def complete(self) -> bool:
         return not self.warming and not self.unresolved
+
+    def interruptions(self) -> tuple[Interruption, ...]:
+        """The syllables a chord change lands in the middle of, if any.
+
+        Same rule as ``_splits``: strictly inside, so a chord sitting on a syllable
+        boundary is the good case and counts for nothing. That strictness is also
+        what makes the source range safe to index — a syllable with a chord inside it
+        has at least one character, so it maps onto at least one source run.
+        """
+
+        def inside(syllable: PlacedSyllable) -> tuple[Chord, ...]:
+            return tuple(
+                chord
+                for chord in self.line.chords
+                if syllable.start < chord.lyric < syllable.end
+            )
+
+        found: list[Interruption] = []
+        for syllable in self.syllables:
+            # An inexact syllable's extent is its whole word, so "inside" would be a
+            # guess — and a fix cannot move a chord to a place we do not know.
+            if not syllable.exact or not (chords := inside(syllable)):
+                continue
+            ranges = self.line.spans.to_source(syllable.start, syllable.end)
+            found.append(
+                Interruption(syllable, chords, SrcRange(ranges[0].start, ranges[-1].end))
+            )
+        return tuple(found)
 
     def groups(self) -> tuple[ChordGroup, ...]:
         """Syllables split by the chord governing each — the shape every view wants.

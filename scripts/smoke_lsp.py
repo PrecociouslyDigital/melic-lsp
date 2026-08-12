@@ -93,6 +93,20 @@ def open_document(stdin: BinaryIO, path: Path) -> str:
     return path.as_uri()
 
 
+def edited(line: str, edits: list[dict[str, Any]]) -> str:
+    """One line as an editor would leave it, taking the edits from the end backwards.
+
+    Which is also the check that they do not overlap: a fix that moves a chord has
+    to survive being applied by something other than the code that produced it.
+    """
+    for edit in sorted(
+        edits, key=lambda e: e["range"]["start"]["character"], reverse=True
+    ):
+        start, end = edit["range"]["start"]["character"], edit["range"]["end"]["character"]
+        line = line[:start] + edit["newText"] + line[end:]
+    return line
+
+
 def coded(items: list[dict[str, Any]]) -> list[str]:
     """The cross-line hints among a diagnostic report: only those carry a code."""
     return [item["code"] for item in items if item.get("code")]
@@ -141,6 +155,7 @@ def main() -> int:
         "hoverProvider",
         "diagnosticProvider",
         "documentSymbolProvider",
+        "codeActionProvider",
     ):
         present = capability in capabilities
         print(f"{capability:<24} {'advertised' if present else 'MISSING'}")
@@ -247,6 +262,26 @@ def main() -> int:
         print(f"    {message}")
     ok &= any("Unclosed" in item["message"] for item in items)
 
+    # The one lint with an answer, taken all the way: ask for the fix where the
+    # chord splits a syllable, then apply it exactly as the editor would.
+    rows = edges.read_text().split("\n")
+    row = next(index for index, text in enumerate(rows) if "mid[D]word" in text)
+    cursor = {"line": row, "character": 0}
+    actions = request(stdin, stdout, 8, "textDocument/codeAction", {
+        "textDocument": {"uri": edges.as_uri()},
+        "range": {"start": cursor, "end": cursor},
+        "context": {"diagnostics": []},
+    }) or []
+    fixed = [
+        edited(rows[row], action["edit"]["changes"][edges.as_uri()])
+        for action in actions
+    ]
+    print(f"{'code actions':<24} {[action['title'] for action in actions]}")
+    for after in fixed:
+        print(f"    {rows[row]}\n -> {after}")
+    ok &= fixed == ["Split mi[D]dword and chari[D]ot again."]
+    ok &= all(action.get("diagnostics") for action in actions)
+
     long_song = ROOT / "tests" / "fixtures" / "long_song.cho"
     send(stdin, {
         "jsonrpc": "2.0", "method": "textDocument/didOpen",
@@ -257,7 +292,7 @@ def main() -> int:
     })
     # Driven off what the server advertises, so a renamed command cannot quietly
     # stop being exercised here.
-    for id_, command in enumerate(sorted(advertised), start=8):
+    for id_, command in enumerate(sorted(advertised), start=9):
         panel = request(stdin, stdout, id_, "workspace/executeCommand",
                         {"command": command, "arguments": [long_song.as_uri()]})
         body = panel or ""

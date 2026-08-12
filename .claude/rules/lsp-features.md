@@ -64,6 +64,14 @@ would ask for the repaint.
   stay that way: two verses disagreeing on syllable count might be a mistake or might be
   the song. A guessed pronunciation is likewise not flagged — `{x_melic_word}` is the fix
   for that, and marking every invented word in a lyric sheet is noise you learn to ignore.
+- **Code actions** are the only place the server rewrites a lyric, so there is exactly
+  one: a chord landing inside a syllable moves to that syllable's first character. It is
+  offered where a lint has already been drawn and the answer is not a matter of taste —
+  a line two syllables longer than its sibling gets no fix, only a question. Three things
+  hold it together: `LineAnalysis.interruptions()` is the single detection, shared with
+  the lint; `diagnostics.chord_mid_syllable` builds the diagnostic the action attaches,
+  since a client pairs a fix to its problem *by value*; and `context.only` is honoured,
+  so a client's fix-all-on-save cannot quietly rearrange someone's chords.
 - **`hints.py` is the governed exception**, and the only place a cross-line judgement is
   published. Three rules — `rhymeSchemeMismatch`, `parallelLineDrift`,
   `chordProgressionDrift` — each with its own `melic.hints.<rule>.severity` (`off` is a

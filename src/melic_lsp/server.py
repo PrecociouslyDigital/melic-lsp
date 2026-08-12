@@ -16,8 +16,16 @@ from lsprotocol import types as lsp
 from pygls.lsp.server import LanguageServer
 
 from . import prosody
-from .analysis import DocumentAnalysis, analyse_document
-from .features import diagnostics, hints, hover, inlay_hints, symbols, views
+from .analysis import DocumentAnalysis, LineAnalysis, analyse_document
+from .features import (
+    code_actions,
+    diagnostics,
+    hints,
+    hover,
+    inlay_hints,
+    symbols,
+    views,
+)
 from .features.semantic_tokens import LEGEND, encode
 from .settings import Settings
 from .types import SrcCol, Unavailable
@@ -110,15 +118,33 @@ def semantic_tokens(ls: MelicServer, params: lsp.SemanticTokensParams) -> lsp.Se
     return encode(list(ls.analyse(params.text_document.uri).lines))
 
 
+def _within(model: DocumentAnalysis, span: lsp.Range) -> list[LineAnalysis]:
+    """The analysed lines a request's range touches, whole lines at a time."""
+    return [
+        analysis
+        for analysis in model.lines
+        if span.start.line <= analysis.line.row <= span.end.line
+    ]
+
+
 @server.feature(lsp.TEXT_DOCUMENT_INLAY_HINT)
 def inlay_hint(ls: MelicServer, params: lsp.InlayHintParams) -> list[lsp.InlayHint]:
     model = ls.analyse(params.text_document.uri)
-    visible = [
-        analysis
-        for analysis in model.lines
-        if params.range.start.line <= analysis.line.row <= params.range.end.line
-    ]
-    return inlay_hints.build(visible, ls.settings, model.rhymes)
+    return inlay_hints.build(_within(model, params.range), ls.settings, model.rhymes)
+
+
+@server.feature(
+    lsp.TEXT_DOCUMENT_CODE_ACTION,
+    lsp.CodeActionOptions(code_action_kinds=[lsp.CodeActionKind.QuickFix]),
+)
+def code_action(ls: MelicServer, params: lsp.CodeActionParams) -> list[lsp.CodeAction]:
+    model = ls.analyse(params.text_document.uri)
+    return code_actions.build(
+        _within(model, params.range),
+        ls.settings,
+        params.text_document.uri,
+        params.context,
+    )
 
 
 @server.feature(lsp.TEXT_DOCUMENT_HOVER)

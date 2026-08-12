@@ -17,7 +17,7 @@ from difflib import get_close_matches
 
 from lsprotocol import types as lsp
 
-from ..analysis import LineAnalysis
+from ..analysis import Interruption, LineAnalysis
 from ..chordpro import DIRECTIVES, Directive, Document, Lyric
 from ..overrides import EMPTY, Overrides
 from ..settings import Settings
@@ -113,18 +113,10 @@ def _lints(analysis: LineAnalysis, settings: Settings) -> list[lsp.Diagnostic]:
     line = analysis.line
 
     if settings.chord_mid_syllable:
-        for syllable in analysis.syllables:
-            ranges = line.spans.to_source(syllable.start, syllable.end)
-            if len(ranges) > 1:
-                # More than one source range means a chord token sits inside the
-                # syllable — the singer has to change chord mid-vowel.
-                found.append(
-                    _at(
-                        line.row, ranges[0].start, ranges[-1].end,
-                        f"Chord lands inside the syllable “{syllable.text}”.",
-                        lsp.DiagnosticSeverity.Information,
-                    )
-                )
+        found.extend(
+            chord_mid_syllable(line.row, interruption)
+            for interruption in analysis.interruptions()
+        )
 
     for note in analysis.notes:
         found.extend(_span_hint(line, note.span.start, note.span.end, note.message))
@@ -138,6 +130,22 @@ def _lints(analysis: LineAnalysis, settings: Settings) -> list[lsp.Diagnostic]:
             found.extend(_span_hint(line, missing.span.start, missing.span.end, missing.reason))
 
     return found
+
+
+def chord_mid_syllable(row: int, interruption: Interruption) -> lsp.Diagnostic:
+    """The mark on one syllable a chord lands inside — the singer changes mid-vowel.
+
+    Public because ``code_actions`` attaches the fix to exactly this diagnostic, and
+    a client pairs the two by comparing them: one built independently would drift
+    from this one on the first word of its message.
+    """
+    return _at(
+        row,
+        interruption.source.start,
+        interruption.source.end,
+        f"Chord lands inside the syllable “{interruption.syllable.text}”.",
+        lsp.DiagnosticSeverity.Information,
+    )
 
 
 def _span_hint(

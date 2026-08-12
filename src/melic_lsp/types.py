@@ -56,8 +56,8 @@ class SpanMap:
     A chord may interrupt a word, so one lyric range can map to several source
     ranges: in ``chari[D]ot`` the lyric word is ``chariot`` and its final syllable
     straddles the chord. Callers get a list and are expected to handle all of it —
-    semantic tokens emit one token per range, and a range count above one is
-    precisely how we detect a chord landing mid-syllable.
+    semantic tokens emit one token per range, and a syllable a chord lands inside is
+    marked from the first range's start to the last one's end.
     """
 
     spans: tuple[Span, ...]

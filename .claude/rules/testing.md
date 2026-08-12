@@ -32,6 +32,7 @@ one when you meet a new shape.
 | `test_signature.py` | golden signature strings | yes |
 | `test_rhyme.py` | scheme strings (pure), which chime we call what, and every solver decision | some |
 | `test_hints.py` | the three cross-line rules, on hand-built counts | no |
+| `test_code_actions.py` | where the moved chord lands, and what the fix refuses | some |
 | `test_settings.py` | defaults, and what one malformed value costs | no |
 
 ## Deliberately not tested

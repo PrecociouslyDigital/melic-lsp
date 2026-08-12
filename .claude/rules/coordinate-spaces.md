@@ -38,8 +38,9 @@ nothing enforces are pure noise, so if you add a bridge, add a violation there t
 
 `to_source` returns a **list**, and callers must handle all of it. In `chari[D]ot` the
 lyric word is `chariot`, but a chord interrupts it, so a syllable spanning the chord maps
-to two source ranges. Semantic tokens emit one token per range; a range count above one
-is also exactly how the chord-mid-syllable diagnostic detects its case.
+to two source ranges. Semantic tokens emit one token per range; the chord-mid-syllable
+lint marks from the first range's start to the last one's end, and its quick fix moves
+the chord to that same start.
 
 ## Positions you cannot have
 

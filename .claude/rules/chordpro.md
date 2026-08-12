@@ -35,12 +35,12 @@ The trailing empty line after a final newline is kept on purpose: the editor sho
 each start/end pair from one row, plus `_MELIC`. Environments carry `EnvKind.LYRIC` or
 `EnvKind.VERBATIM`, which is what excludes tab and grid blocks from analysis.
 
-**`_MELIC` is the whole of what our own directives are**: each row is a name and the
-documentation hover shows for it, and there is nowhere else either can be written. The
-row type demands the prose, `overrides.py` imports the names from here rather than
-spelling them again, and `DirectiveSpec.doc` carries it to hover — so a fifth directive
-is documented and parsed by the same edit, or it does not exist. `test_hover.py` walks
-the table rather than a list of its own.
+**`_MELIC` is the whole of what our own directives are**: a name, and the documentation
+hover shows for it, with nowhere else either can be written. `_melic()` is the only way
+one is built and its `doc` parameter has no default, `overrides.py` imports the names
+from here rather than spelling them again, and `DirectiveSpec.doc` carries the prose to
+hover — so a fifth directive is documented and parsed by the same edit, or it does not
+exist. `test_hover.py` walks the table rather than a list of its own.
 
 **`lookup()` checks the table before its two generic rules.** Our own `x_melic_*`
 directives are registered, and the "anything starting with `x_` is custom" fallback would

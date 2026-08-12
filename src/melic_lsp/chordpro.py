@@ -160,21 +160,29 @@ def _word_doc(covers: str, example: str) -> str:
     )
 
 
-# (canonical, documentation). All four take a value; none has an alias.
-_MELIC: tuple[tuple[str, str], ...] = (
-    (
+def _melic(name: str, doc: str) -> DirectiveSpec:
+    """One of ours: always takes a value, never aliased, never undocumented.
+
+    ``doc`` has no default here, which is the whole point — this is the only way one
+    of our directives is made, so there is no way to make an undocumented one.
+    """
+    return DirectiveSpec(name, (), Category.MELIC, Value.REQUIRED, doc=doc)
+
+
+_MELIC: tuple[DirectiveSpec, ...] = (
+    _melic(
         MELIC_WORD,
         _word_doc("the whole document", f"{MELIC_WORD}: chariot = +cha -ri -ot"),
     ),
-    (
+    _melic(
         MELIC_WORD_SECTION,
         _word_doc("the enclosing section", f"{MELIC_WORD_SECTION}: fire = +fire"),
     ),
-    (
+    _melic(
         MELIC_WORD_LINE,
         _word_doc("the next lyric line", f"{MELIC_WORD_LINE}: fire = +fi -re"),
     ),
-    (
+    _melic(
         MELIC_SCHEME,
         "\n\n".join(
             [
@@ -198,10 +206,7 @@ def _build_directives() -> dict[str, DirectiveSpec]:
         DirectiveSpec(name, aliases, category, value)
         for name, aliases, category, value in _SIMPLE
     ]
-    specs += [
-        DirectiveSpec(name, (), Category.MELIC, Value.REQUIRED, doc=doc)
-        for name, doc in _MELIC
-    ]
+    specs += _MELIC
     for env, start_aliases, end_aliases, kind in _ENVIRONMENTS:
         specs.append(
             DirectiveSpec(

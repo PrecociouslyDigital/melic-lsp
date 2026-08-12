@@ -2,7 +2,7 @@
   "name": "melic-lsp",
   "displayName": "Melic — ChordPro prosody",
   "description": "Syllable counts, stress and chord alignment for ChordPro files",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "melic",
   "private": true,
   "license": "GPL-3.0-or-later",

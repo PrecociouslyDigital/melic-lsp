@@ -1,6 +1,6 @@
 [project]
 name = "melic-lsp"
-version = "0.1.0"
+version = "1.0.0"
 description = "A prosody language server for ChordPro files"
 readme = "README.md"
 # GPL because prosodic is: importing it makes this a derivative work.

@@ -74,9 +74,14 @@ def warm() -> None:
 
 
 def ending(token: str):
+    """The word's syllables, insisting the shipped dictionary can supply them.
+
+    A failure rather than a skip, because CI runs a leg with no espeak: a word only
+    espeak can pronounce would quietly drop these tests there instead of failing
+    anything, which is how one got in. Every word below is in ``english.tsv``.
+    """
     result = prosody.syllabify(token)
-    if not isinstance(result, Ready):
-        pytest.skip(f"no pronunciation for {token!r}")
+    assert isinstance(result, Ready), f"no pronunciation for {token!r}"
     return result.value.syllables
 
 
@@ -91,7 +96,7 @@ def ending(token: str):
         ("chariot", "home", None),
         # Assonance: same vowel, a coda that misses. Prosodic's calibration leaves
         # it out and so does the strict pass — the solver is where it may come back.
-        ("pterodactyl", "fractal", None),
+        ("bramble", "fractal", None),
     ],
 )
 def test_classification(
@@ -138,10 +143,10 @@ def stanza(*texts: str, start: int = 0) -> list:
 
 
 def near_miss_quatrain() -> list:
-    """fire/wire rhymes outright; pterodactyl/fractal is the near miss (coda 0.23)."""
+    """fire/wire rhymes outright; bramble/fractal is the near miss (coda 0.22)."""
     return stanza(
         "Watch the last light leave the fire,",
-        "Bones of some old pterodactyl,",
+        "Bones of a bird beneath the bramble,",
         "Fences running down to wire,",
         "Every branch of it a fractal,",
     )
@@ -151,7 +156,7 @@ def near_miss_quatrain() -> list:
 @pytest.mark.parametrize(
     "first,second,admitted",
     [
-        ("pterodactyl", "fractal", True),  # coda 0.23
+        ("bramble", "fractal", True),  # coda 0.22
         ("time", "line", True),  # coda 0.21
         ("body", "probably", False),  # coda 0.40
         ("day", "late", False),  # coda 1.0 — the textbook assonance
@@ -186,7 +191,7 @@ def test_the_strict_pass_is_untouched_by_any_of_this(warm: None) -> None:
 def test_a_couplet_with_nothing_to_vouch_for_it_gets_nothing(warm: None) -> None:
     """Free verse never sprouts ≈. Alone, a near miss is only a near miss."""
     couplet = stanza(
-        "Bones of some old pterodactyl,",
+        "Bones of a bird beneath the bramble,",
         "Every branch of it a fractal,",
     )
     assert solve([couplet]) == {}

@@ -64,3 +64,15 @@ one when you meet a new shape.
 The server suite runs **twice**, with espeak present and absent. Both are supported, and
 the degradation path is easy to break without noticing. Note `astral-sh/setup-uv`
 publishes no floating major tag, so it is pinned to an exact version.
+
+**Pick test words out of prosodic's `english.tsv`**, unless the word is there to
+exercise the OOV path. Anything else only has a pronunciation where espeak does, so it
+passes locally and breaks the other leg — and a machine with espeak *removed* still
+passes, because prosodic writes every guess to `~/prosodic_data/data/english_cache.tsv`
+and reads it back forever after. To see what CI sees, empty that cache rather than
+trusting the uninstall:
+
+```bash
+HOME=$(mktemp -d) .venv/bin/python -m pytest -q
+HOME=$(mktemp -d) .venv/bin/python scripts/smoke_lsp.py
+```

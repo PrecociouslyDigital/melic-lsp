@@ -263,9 +263,11 @@ def main() -> int:
     ok &= any("Unclosed" in item["message"] for item in items)
 
     # The one lint with an answer, taken all the way: ask for the fix where the
-    # chord splits a syllable, then apply it exactly as the editor would.
+    # chord splits a syllable, then apply it exactly as the editor would. On a word
+    # the shipped dictionary knows, so this runs on the CI leg without espeak too —
+    # "midword" beside it is deliberately unpronounceable and offers no fix.
     rows = edges.read_text().split("\n")
-    row = next(index for index, text in enumerate(rows) if "mid[D]word" in text)
+    row = next(index for index, text in enumerate(rows) if "char[D]iot" in text)
     cursor = {"line": row, "character": 0}
     actions = request(stdin, stdout, 8, "textDocument/codeAction", {
         "textDocument": {"uri": edges.as_uri()},
@@ -279,7 +281,7 @@ def main() -> int:
     print(f"{'code actions':<24} {[action['title'] for action in actions]}")
     for after in fixed:
         print(f"    {rows[row]}\n -> {after}")
-    ok &= fixed == ["Split mi[D]dword and chari[D]ot again."]
+    ok &= fixed == ["Split cha[D]riot and midword again."]
     ok &= all(action.get("diagnostics") for action in actions)
 
     long_song = ROOT / "tests" / "fixtures" / "long_song.cho"

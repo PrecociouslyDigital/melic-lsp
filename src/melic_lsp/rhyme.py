@@ -6,7 +6,7 @@ out: including it buys almost no extra recall for three times the false positive
 really do chime.
 
 :func:`solve` is the sanctioned relaxation, and it needs the whole song to be one.
-Read alone, *pterodactyl* against *fractal* is a near miss not worth calling a
+Read alone, *bramble* against *fractal* is a near miss not worth calling a
 rhyme — same vowel, a coda a little off — and counting every such pair is the
 false-positive flood the calibration warns about. Read against a stanza that already
 rhymes, or a shape its sibling stanzas spell too, the same pair is the obvious
@@ -216,7 +216,7 @@ alike. A weak edge may forgive a consonant; it never forgives a drifted vowel.""
 
 CONTEXTUAL_CODA_MAX = 0.25
 """How far past the perfect region's coda bound (0.15) a near miss may still sit.
-Measured: pterodactyl/fractal 0.23, time/line 0.21 and crazy/baby 0.19 are in;
+Measured: bramble/fractal 0.22, time/line 0.21 and crazy/baby 0.19 are in;
 body/probably 0.40 and day/late 1.0 are out."""
 
 MAX_FREE_LINES = 6

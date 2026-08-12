@@ -46,10 +46,31 @@ the table already names, and a solo that is nothing but chords has no lyrics to 
 `env_label()` unwraps the modern `{start_of_verse: label="Verse 1"}` to `Verse 1`, and is
 the one place a section's name is read out of a directive value.
 
-## Manual overrides
+## Manual annotations
 
 `overrides.py` parses `{x_melic_word: chariot = +cha -ri -ot}` and its `_section` /
 `_line` variants. Precedence: **line → section → document → chord-aware → dictionary.**
+
+It also parses `{x_melic_scheme}`, in two forms:
+
+```
+{x_melic_scheme: ABAB}            the enclosing section, or the next one
+{x_melic_scheme: chorus = ABAB}   every chorus in the song
+```
+
+Three things about it that are decisions rather than details:
+
+- **It lands on stanzas, not sections**, and only on those whose line count matches the
+  pattern — a scheme is measured over a stanza, and holding a six-line stanza to a
+  four-letter pattern would compare two things that were never the same shape.
+- **The grammar lives in `rhyme.py`** (`canonical_pattern`), because a declaration is
+  compared against a `scheme_string` and the two must agree on the alphabet. Letters are
+  renamed into first-appearance order, and a letter used once reads as `X` — no group of
+  one is ever lettered, so no stanza could spell such a shape. `overrides.py` owns the
+  discovery, the scoping and the `Problem` reporting, and nothing else.
+- **It is an expectation, not an instruction.** It corroborates a weak edge the phonetics
+  already allow and reports a stanza that drifts from it; it cannot make two words rhyme.
+  Forcing a pair would be a different directive (`{x_melic_rhyme}`), and is not built.
 
 Two things to preserve:
 

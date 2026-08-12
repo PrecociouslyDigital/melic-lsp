@@ -4,6 +4,11 @@ Deliberately absent: anything comparing one line to another. Two verses that
 disagree on syllable count might be a mistake or might be the song, and a squiggle
 cannot tell the difference. Divergence is shown on request in the compare view
 instead, where it can be looked at rather than argued with.
+
+``hints.py`` is the governed exception, and everything in that sentence still holds
+there: each of its rules has its own ``melic.hints.*`` severity, refuses to fire
+while any line it compares is warming or holds a word with no pronunciation, and
+names the lines it was measured against. ``server.diagnostic`` concatenates the two.
 """
 
 from __future__ import annotations

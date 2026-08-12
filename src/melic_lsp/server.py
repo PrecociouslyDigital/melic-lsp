@@ -17,7 +17,7 @@ from pygls.lsp.server import LanguageServer
 
 from . import prosody
 from .analysis import DocumentAnalysis, analyse_document
-from .features import diagnostics, hover, inlay_hints, symbols, views
+from .features import diagnostics, hints, hover, inlay_hints, symbols, views
 from .features.semantic_tokens import LEGEND, encode
 from .settings import Settings
 from .types import SrcCol, Unavailable
@@ -46,6 +46,7 @@ class MelicServer(LanguageServer):
             self.settings.lang,
             self.settings.rhyme,
             self.settings.chord_aware_syllables,
+            self.settings.slant_scope,
         )
 
 
@@ -63,15 +64,30 @@ async def on_initialized(ls: MelicServer, params: Any) -> None:
             lsp.ShowMessageParams(type=lsp.MessageType.Warning, message=status.reason)
         )
 
-    for refresh in (ls.workspace_semantic_tokens_refresh, ls.workspace_inlay_hint_refresh):
-        try:
-            refresh(None)
-        except Exception:  # noqa: BLE001 - a client may not support refreshing
-            logging.getLogger(__name__).debug("client declined refresh", exc_info=True)
+    _refresh(ls)
 
     # Loading the syntax models costs seconds the first time a metrical scan runs.
     # Doing it here makes the first hover instant and costs the user nothing.
     await asyncio.to_thread(prosody.prewarm_scansion, ls.settings.lang)
+
+
+def _refresh(ls: MelicServer) -> None:
+    """Ask the client to redraw everything a change may have altered.
+
+    Diagnostics are in the list because the cross-line hints refuse to compare a line
+    that is still warming: without a pull after warm-up they would stay silent until
+    the next keystroke, and after a settings change they would keep answering with the
+    settings they were computed under.
+    """
+    for refresh in (
+        ls.workspace_semantic_tokens_refresh,
+        ls.workspace_inlay_hint_refresh,
+        ls.workspace_diagnostic_refresh,
+    ):
+        try:
+            refresh(None)
+        except Exception:  # noqa: BLE001 - a client may not support refreshing
+            logging.getLogger(__name__).debug("client declined refresh", exc_info=True)
 
 
 @server.feature(lsp.INITIALIZE)
@@ -82,6 +98,9 @@ def on_initialize(ls: MelicServer, params: lsp.InitializeParams) -> None:
 @server.feature(lsp.WORKSPACE_DID_CHANGE_CONFIGURATION)
 def on_configuration(ls: MelicServer, params: Any) -> None:
     ls.settings = Settings.parse(getattr(params, "settings", None))
+    # Nothing else would ask: turning a rule off is not an edit, so without this the
+    # document keeps the annotations it had until the next keystroke.
+    _refresh(ls)
 
 
 @server.feature(lsp.TEXT_DOCUMENT_SEMANTIC_TOKENS_FULL, LEGEND)
@@ -127,6 +146,7 @@ def hover_(ls: MelicServer, params: lsp.HoverParams) -> lsp.Hover | None:
         SrcCol(params.position.character),
         siblings,
         ls.settings.lang,
+        model.rhymes,
         model.overrides,
     )
 
@@ -142,6 +162,9 @@ def diagnostic(
         items=diagnostics.build(
             model.document, list(model.lines), ls.settings, model.overrides
         )
+        # Per-line lints and cross-line hints stay in separate modules — one is
+        # about a line, the other about a song — and meet here.
+        + hints.build(model, ls.settings.hints, params.text_document.uri)
     )
 
 

@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from lsprotocol import types as lsp
 
-from .. import prosody, rhyme
+from .. import prosody
 from ..chordpro import Category, Directive, Line, Lyric, Value
 from ..overrides import EMPTY, Override, Overrides
+from ..rhyme import DESCRIPTION, Rhyme
 from ..types import Ready, SrcCol, Syllabified, Tiled, Unavailable, Warming
 
 SYLLABLE_SEP = "·"
@@ -23,13 +24,20 @@ def build(
     column: SrcCol,
     siblings: list[Lyric],
     lang: str,
+    rhymes: dict[int, Rhyme],
     annotations: Overrides = EMPTY,
 ) -> lsp.Hover | None:
+    """``rhymes`` is the document's labels, already computed.
+
+    Hover takes them rather than working the scheme out again, so that what it names
+    as a partner is exactly what the margin lettered — including a near rhyme the
+    solver admitted, which a second strict pass here would deny.
+    """
     match line:
         case Directive():
             return _markdown(_directive_docs(line))
         case Lyric():
-            return _lyric_hover(line, column, siblings, lang, annotations)
+            return _lyric_hover(line, column, siblings, lang, rhymes, annotations)
         case _:
             return None
 
@@ -52,7 +60,12 @@ def _override_docs(override: Override) -> str:
 
 
 def _lyric_hover(
-    line: Lyric, column: SrcCol, siblings: list[Lyric], lang: str, annotations: Overrides
+    line: Lyric,
+    column: SrcCol,
+    siblings: list[Lyric],
+    lang: str,
+    rhymes: dict[int, Rhyme],
+    annotations: Overrides,
 ) -> lsp.Hover | None:
     for chord in line.chords:
         if chord.source.start <= column < chord.source.end:
@@ -67,7 +80,7 @@ def _lyric_hover(
                     return _markdown(_override_docs(override))
                 return _markdown(_word_docs(word.token, lang))
 
-    return _markdown(_line_docs(line, siblings, lang))
+    return _markdown(_line_docs(line, siblings, lang, rhymes))
 
 
 # --- Words -------------------------------------------------------------------
@@ -122,7 +135,9 @@ def _stress_table(syllabified: Syllabified) -> str:
 # --- Lines -------------------------------------------------------------------
 
 
-def _line_docs(line: Lyric, siblings: list[Lyric], lang: str) -> str:
+def _line_docs(
+    line: Lyric, siblings: list[Lyric], lang: str, rhymes: dict[int, Rhyme]
+) -> str:
     parts = [f"**{line.lyric.strip()}**", ""]
 
     match prosody.scan_line(line.lyric, lang):
@@ -139,19 +154,20 @@ def _line_docs(line: Lyric, siblings: list[Lyric], lang: str) -> str:
         case Warming():
             parts.append("*Still loading…*")
 
-    partners = _rhyme_partners(line, siblings, lang)
+    partners = _rhyme_partners(line, siblings, rhymes)
     if partners:
         parts += ["", f"**Rhymes with** {partners}"]
     return "\n".join(parts)
 
 
-def _rhyme_partners(line: Lyric, siblings: list[Lyric], lang: str) -> str:
+def _rhyme_partners(line: Lyric, siblings: list[Lyric], labels: dict[int, Rhyme]) -> str:
     """The rest of this line's rhyme group, each with how it chimes.
 
     The quality is the one the scheme measured — against the line that opened the
-    group — which is what the margin's `~` and `=` marks mean too.
+    group — which is what the margin's `~`, `≈` and `=` marks mean too. Siblings are
+    the enclosing stanza's lines, which is the scope the letters were handed out in,
+    so a row-keyed lookup over them cannot pick up a letter from another stanza.
     """
-    labels = rhyme.scheme(siblings, lang)
     mine = labels.get(line.row)
     if mine is None:
         return ""
@@ -163,7 +179,7 @@ def _rhyme_partners(line: Lyric, siblings: list[Lyric], lang: str) -> str:
             continue
         partners.append(
             f"line {other.row + 1} (“{other.lyric.strip()}”) — "
-            f"{rhyme.DESCRIPTION[label.chime]}"
+            f"{DESCRIPTION[label.chime]}"
         )
     return ", ".join(partners)
 

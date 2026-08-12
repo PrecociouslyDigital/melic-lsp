@@ -17,6 +17,7 @@ import threading
 import warnings
 from dataclasses import dataclass
 from functools import lru_cache
+from math import isnan
 from typing import Any
 
 from .types import (
@@ -194,6 +195,28 @@ def rhyme_type(first: Syllabified, second: Syllabified) -> str | None:
 
 def rhymes(first: Syllabified, second: Syllabified) -> bool:
     return rhyme_type(first, second) in ("perfect", "slant")
+
+
+def rime_distance_nc(
+    first: Syllabified, second: Syllabified
+) -> tuple[float, float] | None:
+    """The (nucleus, coda) rime distance, each 0-1, or None when prosodic will not say.
+
+    The continuous signal behind :func:`rhyme_type`, which reads the same pair of
+    numbers and answers with the region they land in. Callers wanting to know *how
+    near* a miss was — rather than which name it earns — need the numbers.
+
+    Identical tokens answer ``nan``, since prosodic holds that a word does not rhyme
+    with itself, and so does a word with no rime at all; both read as None here.
+    """
+    left, right = _wordform(first), _wordform(second)
+    if left is None or right is None:
+        return None
+    with contextlib.suppress(Exception):
+        nucleus, coda = left.rime_distance_nc(right)
+        if not (isnan(nucleus) or isnan(coda)):
+            return float(nucleus), float(coda)
+    return None
 
 
 @lru_cache(maxsize=2048)

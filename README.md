@@ -17,6 +17,7 @@ and displays its information via LSP.
 | **Rhyme**          | Line endings labelled with rhyme, with slant rhyme support     |
 | **Hover**          | Docs and detailed analysis available on hover                  |
 | **Diagnostics**    | ChordPro syntax, chord placement                               |
+| **Hints**          | Opt-out notes where a stanza drifts from the shape of its siblings |
 | **Outline**        | Sections and their stanzas, each with its syllable profile     |
 | **Analysis**       | tools for chord/syllable/stress grid and cross-work comparison |
 
@@ -30,7 +31,25 @@ Swing [D]low, sweet [G]chari[D]ot,       6σ A=
 Comin' for to [A7]carry me [D]home.      8σ B=
 ```
 
-`~` marks a slant rhyme and `=` a same-word rhyme.
+`~` marks a slant rhyme, `=` a same-word rhyme, and `≈` a near rhyme. Melic attempts
+to infer rhymes based on the structure of your song, but this is a work in progress.
+
+You can also manually declare a rhyme scheme
+
+```
+{x_melic_scheme: ABAB}            this section
+{x_melic_scheme: chorus = ABXAB}   every chorus in the song
+```
+
+## Hints
+
+Melic has some configurable hints:
+
+| Setting | Fires when |
+| --- | --- |
+| `melic.hints.rhymeSchemeMismatch` | a stanza rhymes unlike the pattern it declares, or unlike the matching stanza of the first section of its kind |
+| `melic.hints.parallelLineDrift` | a line's syllable count is more than `tolerance` (1) from the line it lines up with |
+| `melic.hints.chordProgressionDrift` | a line carries more than `tolerance` (2) syllables away from what the other lines over those same chords carry |
 
 ## The stress pattern
 
@@ -43,28 +62,6 @@ Comin' for to carry me [A7]home.         8σ · +---+-- [A7]+
 
 `+` primary stress · `^` secondary · `-` unstressed. 
 
-## The outline
-
-Sections hold stanzas, and a stanza is what a rhyme scheme is measured over — a scheme
-run across four quatrains at once is just noise. A verse of several stanzas says so and
-gives each its own profile:
-
-```
-Verse 1                                 4 stanzas
-  Stanza 1                              7,8,7,6σ · AXAX
-    Countless winter nights ago,             7σ A
-    A woman shivered in the cold.            8σ
-    Cursed the skies, and wondered why       7σ A~
-    The gods invented pain.                  6σ
-```
-
-A verse that *is* one stanza wears the profile itself, with no middle level to open.
-
-Sections come from `{start_of_verse}` and friends — any name works, so
-`{start_of_intro}` is a section too — or, failing a directive, from stanzas separated by
-blank lines. Inside an environment a blank line starts a new stanza rather than ending
-the section, since the directive already said where the section ends.
-
 ## Manual Annotations.
 
 Melic takes your chordpro annotations into account when syllabalizing words.
@@ -75,6 +72,7 @@ You can also apply manual overrides for specific words
 {x_melic_word: chariot = +cha -ri -ot}      the whole document
 {x_melic_word_section: fire = +fire}        the enclosing section
 {x_melic_word_line: fire = +fi -re}         the next lyric line
+{x_melic_scheme: ABAB}                      the rhyme pattern of this section
 ```
 
 ### espeak

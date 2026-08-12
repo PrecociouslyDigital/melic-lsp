@@ -46,6 +46,10 @@ calibration says to count **perfect and slant only**: including assonance triple
 false-positive rate for almost no extra recall. `rhymes()` encodes that; don't loosen it.
 
 `rime_distance` returns `nan` past its cap, so classify with `rime_type`, not the scalar.
+The 2-D signal underneath is exposed as `prosody.rime_distance_nc()` → `(nucleus, coda)`
+or None, since `nan` (identical tokens, or no rime) is not a small distance. That is the
+only new thing this seam offers; the decision of what to do with the numbers is not
+prosodic's, and does not live here.
 
 `prosody.rhymes()` is the boolean; `rhyme.classify()` is what the features use, and it
 keeps *how* two endings chime as a `Chime` — `PERFECT`, `SLANT` or `IDENTICAL`, rendered
@@ -56,3 +60,22 @@ every comparison either way, and throwing it away is the bug this replaced.
 itself, which is right about rhyme and wrong about songs. A refrain ending "home" every
 time is the same slot in the scheme, and `classify` short-circuits to `IDENTICAL` on
 matching tokens before prosodic is consulted at all.
+
+## The one sanctioned relaxation, and where it is allowed to live
+
+`rhymes()` and `classify()` stay strict — **do not loosen them**, and do not make
+assonance a rhyme globally, which is exactly the trade prosodic measured and rejected.
+
+`rhyme.solve()` is the gated relaxation instead. It may admit a near miss (nucleus
+identity plus a coda within `CONTEXTUAL_CODA_MAX`, both in `rhyme.py`) **only where the
+song's structure vouches for it** — the stanza already has a strict group, another
+stanza could spell the same shape, or `{x_melic_scheme}` declares it — and marks what it
+admits `Chime.CONTEXTUAL` (`≈`) rather than folding it into `SLANT`. The thresholds are
+ours, not prosodic's, which is why they sit in `rhyme.py` with the measurements that
+chose them, while `prosody.py` only reports distances.
+
+Two bounds keep the search from costing more than the document: `MAX_FREE_LINES` (how
+many endings get compared) and `MAX_CANDIDATES` (how many readings get weighed). Without
+the second, a stanza with weak edges in every direction takes seconds — measured, and
+pinned by `test_a_stanza_whose_near_misses_are_tangled_keeps_its_strict_scheme`.
+`melic.rhyme.slantScope: strict` turns the whole solver off and leaves the strict pass.

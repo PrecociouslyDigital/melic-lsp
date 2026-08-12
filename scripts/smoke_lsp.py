@@ -62,6 +62,42 @@ def request(stdin: BinaryIO, stdout: BinaryIO, id_: int, method: str, params: An
     return message["result"]
 
 
+def await_refresh(stdin: BinaryIO, stdout: BinaryIO, wanted: str) -> list[str]:
+    """Answer server->client requests until the one we are waiting for arrives.
+
+    Returns every refresh seen on the way, so the caller can say what the server
+    asked for — the diagnostic refresh comes last, and is the one that would have
+    been missing before the hints needed a redraw of their own.
+    """
+    seen: list[str] = []
+    while True:
+        message = receive(stdout)
+        if message is None:
+            raise SystemExit(f"server closed while waiting for {wanted}")
+        if "id" in message and "method" in message:
+            send(stdin, {"jsonrpc": "2.0", "id": message["id"], "result": None})
+            if message["method"].endswith("/refresh"):
+                seen.append(message["method"])
+            if message["method"] == wanted:
+                return seen
+
+
+def open_document(stdin: BinaryIO, path: Path) -> str:
+    send(stdin, {
+        "jsonrpc": "2.0", "method": "textDocument/didOpen",
+        "params": {"textDocument": {
+            "uri": path.as_uri(), "languageId": "chordpro", "version": 1,
+            "text": path.read_text(),
+        }},
+    })
+    return path.as_uri()
+
+
+def coded(items: list[dict[str, Any]]) -> list[str]:
+    """The cross-line hints among a diagnostic report: only those carry a code."""
+    return [item["code"] for item in items if item.get("code")]
+
+
 def main() -> int:
     uri = FIXTURE.as_uri()
     document = {"textDocument": {"uri": uri}}
@@ -91,6 +127,7 @@ def main() -> int:
                 "workspace": {
                     "semanticTokens": {"refreshSupport": True},
                     "inlayHint": {"refreshSupport": True},
+                    "diagnostics": {"refreshSupport": True},
                 }
             },
             # No options: the point is to see what a user actually gets.
@@ -148,17 +185,14 @@ def main() -> int:
         print("  a line reported 0 syllables before it was analysed", file=sys.stderr)
         ok = False
 
-    # The server asks us to redraw once prosodic is loaded; that is our cue.
+    # The server asks us to redraw once prosodic is loaded; that is our cue. The
+    # diagnostic refresh is the last of the three and the one the cross-line hints
+    # need: they refuse to compare a line that was still warming, so without it they
+    # would stay silent until the next keystroke.
     print(f"{'waiting for warm-up':<24} ...", flush=True)
-    while True:
-        message = receive(stdout)
-        if message is None:
-            raise SystemExit("server closed while warming up")
-        if "id" in message and "method" in message:
-            send(stdin, {"jsonrpc": "2.0", "id": message["id"], "result": None})
-            if message["method"].endswith("/refresh"):
-                print(f"{'refresh requested':<24} {message['method']}")
-                break
+    refreshed = await_refresh(stdin, stdout, "workspace/diagnostic/refresh")
+    print(f"{'refresh requested':<24} {', '.join(r.split('/')[-2] for r in refreshed)}")
+    ok &= len(refreshed) == 3
 
     tokens = request(stdin, stdout, 3, "textDocument/semanticTokens/full", document)
     data = tokens.get("data") if isinstance(tokens, dict) else None
@@ -232,12 +266,67 @@ def main() -> int:
               f"{'with' if '+' in body else 'NO'} stress marks")
         ok &= "Melic —" in body and len(body.splitlines()) > 5 and "+" in body
 
+    # The conservative default, and the regression test for it: a song with nothing
+    # wrong across its lines gets no cross-line hint at all. Only the hints carry a
+    # code — the per-line lints do not — so counting codes counts hints.
+    report = request(stdin, stdout, 20, "textDocument/diagnostic", document)
+    unwanted = coded((report or {}).get("items", []))
+    print(f"{'hints on swing_low':<24} {len(unwanted)}, and none is the right number")
+    if unwanted:
+        print(f"  default settings made {unwanted} of a song with no drift in it",
+              file=sys.stderr)
+        ok = False
+
+    drift_uri = open_document(stdin, ROOT / "tests" / "fixtures" / "drift.cho")
+    drift_document = {"textDocument": {"uri": drift_uri}}
+    report = request(stdin, stdout, 21, "textDocument/diagnostic", drift_document)
+    found = [item for item in (report or {}).get("items", []) if item.get("code")]
+    print(f"{'hints on drift':<24} {len(found)}")
+    for item in found:
+        evidence = [
+            related["location"]["range"]["start"]["line"]
+            for related in item.get("relatedInformation") or []
+        ]
+        print(f"    {item['code']:<22} line {item['range']['start']['line']:>2}"
+              f"  evidence on {evidence}")
+    ok &= {"parallelLineDrift", "rhymeSchemeMismatch"} <= {i["code"] for i in found}
+    ok &= all(item.get("relatedInformation") for item in found)
+
+    # One of those is measured against the {x_melic_scheme} the file declares rather
+    # than against a sibling section, which is the path needing no siblings at all.
+    declared = [item for item in found if "declares" in item["message"]]
+    print(f"{'declared scheme':<24} {'referenced' if declared else 'MISSING'}")
+    ok &= bool(declared)
+
+    margins = request(stdin, stdout, 22, "textDocument/inlayHint", {
+        **drift_document,
+        "range": {"start": {"line": 0, "character": 0},
+                  "end": {"line": 99, "character": 0}},
+    }) or []
+    near = [hint["label"] for hint in margins if "≈" in hint["label"]]
+    print(f"{'near rhyme admitted':<24} {near if near else 'MISSING'}")
+    ok &= bool(near)
+
+    # Turning a rule off has to repaint without an edit to prompt it: the server asks
+    # for a refresh, and the pull that follows no longer carries that rule.
+    send(stdin, {
+        "jsonrpc": "2.0", "method": "workspace/didChangeConfiguration",
+        "params": {"settings": {
+            "melic": {"hints": {"parallelLineDrift": {"severity": "off"}}}
+        }},
+    })
+    await_refresh(stdin, stdout, "workspace/diagnostic/refresh")
+    report = request(stdin, stdout, 23, "textDocument/diagnostic", drift_document)
+    remaining = sorted(set(coded((report or {}).get("items", []))))
+    print(f"{'with the rule off':<24} {remaining}")
+    ok &= "parallelLineDrift" not in remaining and "rhymeSchemeMismatch" in remaining
+
     # Editors cancel requests they no longer need, and ours are answered long
     # before the cancel arrives. That race is normal and unactionable, so it must
     # not shout in the output channel.
     send(stdin, {"jsonrpc": "2.0", "method": "$/cancelRequest", "params": {"id": 4}})
 
-    request(stdin, stdout, 8 + len(advertised), "shutdown", None)
+    request(stdin, stdout, 99, "shutdown", None)
     send(stdin, {"jsonrpc": "2.0", "method": "exit", "params": None})
     _, err = process.communicate(timeout=60)
 

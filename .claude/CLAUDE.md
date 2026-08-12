@@ -18,8 +18,14 @@ Comin' for to carry me [A7]home.       8σ B
 Swing [D]low, sweet [G]chari[D]ot,     6σ A=
 ```
 
-Letters run per section; `~` is a slant rhyme, `=` the same word ending a line again. A
+Letters run per stanza. `~` is a slant rhyme, `=` the same word ending a line again, and
+`≈` a near rhyme the *solver* admitted — same vowel, a coda a little off — which is only
+ever labelled where the song's structure vouches for it (`melic.rhyme.slantScope`). A
 trailing `?` on the count means a word had no pronunciation, so the number is a floor.
+
+A song can declare the shape it means to have, which the solver honours and the hints
+measure against: `{x_melic_scheme: ABAB}` for a section, `{x_melic_scheme: chorus = ABAB}`
+for every section of a kind.
 
 The **line signature** — stress marks grouped by chord, `6σ · + [D]++ [G]+- [D]-` — is
 `melic.lineSignature.mode` away, but it lives properly in the Scansion Panel and Compare
@@ -71,6 +77,11 @@ real debugging time:
    outside the repo.
 4. **Never memoise a `Warming` result.** The cache deliberately sits *behind* the
    readiness check in `prosody.py`.
+5. **The rhyme solver needs both its bounds.** `MAX_FREE_LINES` caps the endings it
+   compares; `MAX_CANDIDATES` caps the readings it weighs, and only the second stops a
+   stanza with weak edges in every direction from taking **seconds** — a free line with
+   an edge to several groups multiplies readings rather than adding to them. Measured,
+   and pinned by a test.
 
 # Conventions
 

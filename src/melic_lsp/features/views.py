@@ -1,9 +1,13 @@
 """The two on-demand panels, rendered as monospace text for a read-only document.
 
-Cross-line divergence lives here and only here. A verse that runs a syllable long
-against its neighbour may be a slip or may be the song, and a diagnostic that
-cannot tell the difference would just be a squiggle you learn to ignore. Shown on
-request, side by side, it is information instead of an accusation.
+This is where cross-line divergence is *looked at*. A verse that runs a syllable
+long against its neighbour may be a slip or may be the song, and a panel shown on
+request, side by side, is information rather than an accusation.
+
+``hints.py`` publishes a few such comparisons as diagnostics, but only the ones the
+song itself vouches for, each behind its own severity. Everything else — every line
+against every sibling, whether or not anything looks wrong — is still on request,
+and still here.
 """
 
 from __future__ import annotations

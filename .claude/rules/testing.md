@@ -30,7 +30,9 @@ one when you meet a new shape.
 | `test_overrides.py` | payload grammar, scope precedence, textual validation | no |
 | `test_prosody.py` | **our guard** (`Tiled` vs `WholeWord`), graceful OOV | some |
 | `test_signature.py` | golden signature strings | yes |
-| `test_rhyme.py` | scheme strings (pure), and which chime we call what | some |
+| `test_rhyme.py` | scheme strings (pure), which chime we call what, and every solver decision | some |
+| `test_hints.py` | the three cross-line rules, on hand-built counts | no |
+| `test_settings.py` | defaults, and what one malformed value costs | no |
 
 ## Deliberately not tested
 
@@ -47,7 +49,11 @@ one when you meet a new shape.
    `scripts/coordinate_space_violations.py`. Add a violation when you add a bridge.
 2. **`scripts/bench_tier1.py`** — gates the no-cache decision. Under 10 ms fine; over
    50 ms add line-level memoisation and nothing more. Keep the fixture vocabulary
-   realistic (~150 unique tokens) or it just measures cache hit rate.
+   realistic (~150 unique tokens) or it just measures cache hit rate, and keep the song
+   in stanzas — the rhyme solver reads one stanza at a time, and one 200-line stanza is
+   both unlike any song and skipped outright. It times the **whole request**
+   (`analyse_document` + `hints.build` + rendering), which is why the number stepped up
+   from the ~3 ms it reported while it only timed per-line work.
 3. **`scripts/smoke_lsp.py`** — real JSON-RPC against the real binary. Checks the warming
    → refresh → annotated sequence, and that server/palette command ids stay disjoint.
    When you add a feature, add a line here rather than a mock.

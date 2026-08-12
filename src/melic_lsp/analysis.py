@@ -15,7 +15,7 @@ from typing import assert_never
 from . import prosody
 from .chordpro import Chord, Document, Lyric, parse_document
 from .overrides import EMPTY, Override, Overrides, collect
-from .rhyme import Rhyme, scheme
+from .rhyme import Rhyme, SlantScope, scheme, solve
 from .sections import Section, group
 from .types import (
     LyricCol,
@@ -131,16 +131,15 @@ class DocumentAnalysis:
 
 
 def analyse_document(
-    text: str, lang: str = "en", rhyming: bool = True, chord_aware: bool = True
+    text: str,
+    lang: str = "en",
+    rhyming: bool = True,
+    chord_aware: bool = True,
+    slant: SlantScope = "contextual",
 ) -> DocumentAnalysis:
     document = parse_document(text)
     found = group(document)
     annotations = collect(document, found)
-    labels: dict[int, Rhyme] = {}
-    if rhyming:
-        for section in found:
-            for stanza in section.stanzas:
-                labels.update(scheme(list(stanza.lines), lang))
     return DocumentAnalysis(
         document,
         tuple(found),
@@ -148,9 +147,40 @@ def analyse_document(
             analyse_line(line, lang, chord_aware, annotations)
             for line in document.lyrics()
         ),
-        labels,
+        _rhymes(found, annotations, lang, slant) if rhyming else {},
         annotations,
     )
+
+
+def _rhymes(
+    sections: Sequence[Section], annotations: Overrides, lang: str, slant: SlantScope
+) -> dict[int, Rhyme]:
+    """Label every stanza in the song.
+
+    A scheme is a property of a stanza, so the strict pass runs over one stanza at a
+    time and never across two. The solver takes them all at once for the opposite
+    reason: which near rhymes to believe is a property of the whole song.
+    """
+    stanzas = [stanza for section in sections for stanza in section.stanzas]
+    match slant:
+        case "strict":
+            return {
+                row: rhyme
+                for stanza in stanzas
+                for row, rhyme in scheme(list(stanza.lines), lang).items()
+            }
+        case "contextual":
+            return solve(
+                [list(stanza.lines) for stanza in stanzas],
+                lang,
+                [
+                    found.pattern
+                    if (found := annotations.schemes.get(stanza.start_row))
+                    else None
+                    for stanza in stanzas
+                ],
+            )
+    assert_never(slant)
 
 
 def _splits(syllabified: Syllabified, start: LyricCol, onsets: Sequence[LyricCol]) -> int:

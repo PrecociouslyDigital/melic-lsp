@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from melic_lsp.chordpro import parse_document
-from melic_lsp.overrides import Override, Problem, collect, _parse
+from melic_lsp.overrides import Override, Problem, collect, _parse, _parse_scheme
 from melic_lsp.sections import group
 from melic_lsp.types import Stress
 
@@ -118,3 +118,70 @@ def test_an_override_covering_nothing_is_reported() -> None:
 
 def test_a_document_with_no_annotations_costs_nothing() -> None:
     assert table("burning fire\n").empty
+
+
+# --- Declared rhyme schemes ---------------------------------------------------
+
+QUATRAIN = """\
+The morning water running cold,
+The windows rattling with the rain,
+The willow turning brown and gold,
+The furrows lying bare and plain,
+"""
+
+COUPLET = "Sing it low,\nSing it long,\n"
+
+SONG_WITH_SECTIONS = (
+    f"{{start_of_verse}}\n{QUATRAIN}{{end_of_verse}}\n\n"
+    f"{{start_of_chorus}}\n{COUPLET}{{end_of_chorus}}\n"
+)
+
+
+@pytest.mark.parametrize(
+    "payload,expected",
+    [
+        ("ABAB", (None, "ABAB")),
+        ("abab", (None, "ABAB")),
+        ("chorus = ABAB", ("chorus", "ABAB")),
+        # Renamed into first-appearance order, so a declaration and a computed
+        # scheme string are comparable as written.
+        ("BABA", (None, "ABAB")),
+        ("AABX", (None, "AAXX")),
+    ],
+)
+def test_scheme_payloads(payload: str, expected: tuple[str | None, str]) -> None:
+    assert _parse_scheme(0, payload) == expected
+
+
+@pytest.mark.parametrize("payload", ["AB-AB", "AB AB", "", "= ABAB", "4 lines"])
+def test_malformed_schemes_are_reported_not_guessed(payload: str) -> None:
+    assert isinstance(_parse_scheme(0, payload), Problem)
+
+
+VERSE = f"{{start_of_verse}}\n{QUATRAIN}{{end_of_verse}}\n"
+CHORUS = f"{{start_of_chorus}}\n{COUPLET}{{end_of_chorus}}\n"
+
+
+def test_a_bare_pattern_covers_the_stanzas_of_its_own_section() -> None:
+    declared = table(f"{{start_of_verse}}\n{{x_melic_scheme: ABAB}}\n{QUATRAIN}{{end_of_verse}}\n")
+    assert [(row, found.pattern) for row, found in declared.schemes.items()] == [
+        (2, "ABAB")
+    ]
+
+
+def test_a_pattern_written_between_sections_covers_the_next_one() -> None:
+    """Same rule as the word annotations: "this verse", written above the verse."""
+    declared = table(f"{{x_melic_scheme: ABAB}}\n{VERSE}")
+    assert 2 in declared.schemes
+
+
+def test_the_kind_form_reaches_every_section_of_that_kind() -> None:
+    declared = table(f"{{x_melic_scheme: chorus = AA}}\n{SONG_WITH_SECTIONS}{CHORUS}")
+    assert [found.pattern for found in declared.schemes.values()] == ["AA", "AA"]
+
+
+def test_a_stanza_of_another_length_is_not_covered() -> None:
+    """Holding a couplet to ABAB would compare two things that were never the shape."""
+    declared = table(f"{{x_melic_scheme: chorus = ABAB}}\n{SONG_WITH_SECTIONS}")
+    assert not declared.schemes
+    assert any("No 4-line stanza" in problem.message for problem in declared.problems)

@@ -130,6 +130,7 @@ _SIMPLE: tuple[tuple[str, tuple[str, ...], Category, Value], ...] = (
     ("x_melic_word", (), Category.CUSTOM, Value.REQUIRED),
     ("x_melic_word_section", (), Category.CUSTOM, Value.REQUIRED),
     ("x_melic_word_line", (), Category.CUSTOM, Value.REQUIRED),
+    ("x_melic_scheme", (), Category.CUSTOM, Value.REQUIRED),
 )
 
 

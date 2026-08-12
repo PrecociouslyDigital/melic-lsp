@@ -42,6 +42,12 @@ annotating a list makes cattrs structure the URI string into a list of character
 asks the client to refresh once, then pre-warms tier 2. Requests arriving before that
 answer `Warming`, and the signature renders `…` rather than a confident `0σ`.
 
+`_refresh(ls)` is that redraw, and it covers semantic tokens, inlay hints **and
+diagnostics**. Diagnostics belong in it because the hints refuse to compare a warming
+line, so without the third refresh they would stay silent until the next keystroke.
+`on_configuration` calls it too: turning a rule off is not an edit, and nothing else
+would ask for the repaint.
+
 ## Feature notes
 
 - **Semantic tokens** are delta-packed quintuples; a syllable spanning a chord emits one
@@ -54,10 +60,27 @@ answer `Warming`, and the signature renders `…` rather than a confident `0σ`.
   against text of varying length, so nothing in that column lines up with anything else,
   and lining marks up is the entire reason to read them. `views.py` shows them in
   columns instead. `chord-grouped` remains one setting away for anyone who wants it.
-- **Diagnostics** deliberately contain *no* cross-line comparison. Two verses disagreeing
-  on syllable count might be a mistake or might be the song, and a squiggle cannot tell.
-  Divergence belongs in the compare view, on request. A guessed pronunciation is likewise
-  not flagged — `{x_melic_word}` is the fix for that, and marking every invented word in
-  a lyric sheet is noise you learn to ignore.
+- **Diagnostics** are per line. `diagnostics.py` compares nothing across lines and must
+  stay that way: two verses disagreeing on syllable count might be a mistake or might be
+  the song. A guessed pronunciation is likewise not flagged — `{x_melic_word}` is the fix
+  for that, and marking every invented word in a lyric sheet is noise you learn to ignore.
+- **`hints.py` is the governed exception**, and the only place a cross-line judgement is
+  published. Three rules — `rhymeSchemeMismatch`, `parallelLineDrift`,
+  `chordProgressionDrift` — each with its own `melic.hints.<rule>.severity` (`off` is a
+  supported answer) and, for the count rules, a tolerance. The constraints that earn them
+  the exception, all of which have tests:
+  - Every rule refuses to fire while a compared line is **warming** or holds an
+    **unresolved** word: its count is a floor, not a total. This is also what keeps the
+    espeak-less CI leg quiet.
+  - The stack rules and the progression rule run only on **explicitly-kinded** sections.
+    In an undirected song every blank-line stanza is one implicit kind, and a chorus hook
+    would be held against a verse line. A **declared** scheme is its own norm and applies
+    wherever it is written, implicit stanzas included.
+  - Every hint carries `source` and a `code` — the code *is* the settings key — and names
+    its evidence in `related_information`, capped at `RELATED_CAP`.
+  - The progression rule needs a group of `MIN_PROGRESSION_GROUP` and a strict-majority
+    mode before it has a norm, and skips rows `parallelLineDrift` already claimed.
+  `smoke_lsp.py` pins the defaults by asserting **zero coded diagnostics on
+  `swing_low.cho`**; `drift.cho` is the fixture where each rule does fire.
 - **Hover** is the one place tier 2 may run, and must say when a reading came from a
   manual annotation rather than the dictionary.

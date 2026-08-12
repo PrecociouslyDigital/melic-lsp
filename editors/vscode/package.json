@@ -141,7 +141,20 @@
         "melic.rhyme.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Label rhyming line endings: A, B, … per section, with ~ for a slant rhyme and = for the same word repeated."
+          "description": "Label rhyming line endings: A, B, … per section, with ~ for a slant rhyme, ≈ for a near rhyme and = for the same word repeated."
+        },
+        "melic.rhyme.slantScope": {
+          "type": "string",
+          "enum": [
+            "strict",
+            "contextual"
+          ],
+          "enumDescriptions": [
+            "Only the rhymes prosodic's own calibration counts: perfect and slant",
+            "Also near rhymes — the same vowel, a close coda — where the song's structure supports one: a stanza that already rhymes, a shape its sibling stanzas spell, or a scheme the file declares. Marked ≈ in the margin"
+          ],
+          "default": "contextual",
+          "description": "How far rhyme labelling may reach past prosodic's calibration."
         },
         "melic.chordAwareSyllables": {
           "type": "boolean",
@@ -166,6 +179,51 @@
           ],
           "default": "hint",
           "description": "Note words with no pronunciation available, whose syllables therefore go uncounted. Words espeak guessed are not flagged — use {x_melic_word} if a guess is wrong."
+        },
+        "melic.hints.rhymeSchemeMismatch.severity": {
+          "type": "string",
+          "enum": [
+            "off",
+            "hint",
+            "info",
+            "warning"
+          ],
+          "default": "hint",
+          "description": "Note a stanza that does not rhyme the way the song says it should — the pattern {x_melic_scheme} declares for it, or failing that the matching stanza of the first section of its kind."
+        },
+        "melic.hints.parallelLineDrift.severity": {
+          "type": "string",
+          "enum": [
+            "off",
+            "hint",
+            "info",
+            "warning"
+          ],
+          "default": "hint",
+          "description": "Note a line whose syllable count is far from the line it lines up with in the first section of its kind."
+        },
+        "melic.hints.parallelLineDrift.tolerance": {
+          "type": "number",
+          "minimum": 0,
+          "default": 1,
+          "description": "How many syllables two matching lines may differ by before it is worth mentioning. One is pickup-note territory."
+        },
+        "melic.hints.chordProgressionDrift.severity": {
+          "type": "string",
+          "enum": [
+            "off",
+            "hint",
+            "info",
+            "warning"
+          ],
+          "default": "hint",
+          "description": "Note a line that carries a different number of syllables from the other lines sung over the same chords, in sections of the same kind."
+        },
+        "melic.hints.chordProgressionDrift.tolerance": {
+          "type": "number",
+          "minimum": 0,
+          "default": 2,
+          "description": "How many syllables a line may differ from its progression's norm before it is worth mentioning. Looser than parallel lines, which are meant to share a melody."
         },
         "melic.lang": {
           "type": "string",

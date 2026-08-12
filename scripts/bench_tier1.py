@@ -17,21 +17,28 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from melic_lsp import prosody  # noqa: E402
-from melic_lsp.analysis import analyse_line  # noqa: E402
+from melic_lsp.analysis import analyse_document  # noqa: E402
 from melic_lsp.chordpro import parse_document  # noqa: E402
+from melic_lsp.features import hints  # noqa: E402
+from melic_lsp.settings import HintSettings  # noqa: E402
 from melic_lsp.signature import Mode, render  # noqa: E402
 
 BUDGET_MS = 10.0
 CEILING_MS = 50.0
 TARGET_LINES = 200
+STANZA_LINES = 4
 
 
 def build_song() -> str:
-    """A 200-line song with a realistic vocabulary.
+    """A 200-line song with a realistic vocabulary, in stanzas.
 
     Drawn from several traditional songs rather than one repeated verse: a
     benchmark whose 200 lines share two dozen words would mostly be measuring the
     per-word cache hit rate, which is the very thing under test.
+
+    Broken into stanzas because the rhyme solver reads one stanza at a time, and a
+    single 200-line stanza is both unlike any song and — being far past
+    ``MAX_FREE_LINES`` — skipped outright, which would measure nothing.
     """
     fixtures = Path(__file__).resolve().parent.parent / "tests" / "fixtures"
     lyric_lines = [
@@ -41,17 +48,23 @@ def build_song() -> str:
         if line.lyric.strip()
     ]
     repeated = (lyric_lines * (TARGET_LINES // len(lyric_lines) + 1))[:TARGET_LINES]
-    return "\n".join(repeated)
+    return "\n\n".join(
+        "\n".join(repeated[start : start + STANZA_LINES])
+        for start in range(0, len(repeated), STANZA_LINES)
+    )
 
 
 def tier1(document_text: str) -> int:
-    """Everything the editor asks for on every request."""
-    marks = 0
-    for line in parse_document(document_text).lyrics():
-        analysis = analyse_line(line)
+    """Everything the editor asks for on every request.
+
+    The whole document, not a line at a time: the rhyme solver and the cross-line
+    hints both work over the song, so measuring per line would miss them entirely.
+    """
+    model = analyse_document(document_text)
+    hints.build(model, HintSettings(), "file:///bench.cho")
+    for analysis in model.lines:
         render(analysis, Mode.CHORD_GROUPED)  # the costliest mode, not the default
-        marks += analysis.count
-    return marks
+    return sum(analysis.count for analysis in model.lines)
 
 
 def main() -> int:

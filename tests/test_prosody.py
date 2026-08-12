@@ -130,3 +130,30 @@ def test_rhyme_needs_no_text_construction(
     left, right = prosody.syllabify(first), prosody.syllabify(second)
     assert isinstance(left, Ready) and isinstance(right, Ready)
     assert prosody.rhymes(left.value.syllables, right.value.syllables) is expected
+
+
+def syllables(token: str):
+    result = prosody.syllabify(token)
+    if not isinstance(result, Ready):
+        pytest.skip(f"no pronunciation for {token!r}")
+    return result.value.syllables
+
+
+@pytest.mark.requires_prosodic
+def test_the_rime_distance_is_two_numbers_in_range(warm: None) -> None:
+    distance = prosody.rime_distance_nc(syllables("home"), syllables("roam"))
+    assert distance is not None
+    nucleus, coda = distance
+    assert 0.0 <= nucleus <= 1.0 and 0.0 <= coda <= 1.0
+
+
+@pytest.mark.requires_prosodic
+def test_a_word_has_no_distance_from_itself(warm: None) -> None:
+    """Prosodic answers nan rather than zero, and nan is not a small distance."""
+    assert prosody.rime_distance_nc(syllables("home"), syllables("home")) is None
+
+
+@pytest.mark.requires_prosodic
+def test_a_word_with_no_syllables_has_no_distance(warm: None) -> None:
+    """The degraded case: nothing to build a rime from, so no number is invented."""
+    assert prosody.rime_distance_nc(tile("zzzxqq", ()), syllables("home")) is None

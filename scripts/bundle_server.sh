@@ -72,6 +72,29 @@ prune=(
     ipython IPython jedi pygments prompt_toolkit
 )
 
+# The interpreter ships a desktop Python; what runs here is a stdio JSON-RPC server.
+# Paths are relative to <dir>/python and absent on some targets, which is fine — the
+# removal is unconditional and `rm -rf` does not mind.
+#
+# `share/terminfo` is the one that is not merely dead weight. It is a terminal
+# capability database filed by terminal name, and those are case-sensitive: `P12` and
+# `p12` are different terminals, so the tree holds 25 pairs of paths differing only in
+# case. A VSIX is a zip that has to unpack safely on case-insensitive filesystems, so
+# `vsce package` refuses the whole build — which is why only the two Linux targets
+# ever failed, macOS and Windows builds shipping no terminfo at all.
+prune_interpreter=(
+    share/terminfo    # 25 colliding paths; nothing here has a terminal
+    share/man         # man pages
+    include           # C headers, for compiling against this interpreter
+    "lib/python$python_version/ensurepip"
+    "lib/python$python_version/site-packages/pip"
+    "lib/python$python_version/site-packages/pip-"*.dist-info
+    "lib/python$python_version/idlelib"     # the IDLE editor
+    "lib/python$python_version/tkinter"     # GUI toolkit; matplotlib is pruned above
+    "lib/python$python_version/lib2to3"     # deprecated, removed in 3.13
+    "lib/python$python_version/turtledemo"
+)
+
 # Refuse to clear a directory that is not ours to clear: a previous bundle has a
 # libs/melic_lsp in it, anything else is someone's mistaken argument.
 if [[ -e "$target_dir" ]]; then
@@ -116,6 +139,24 @@ shopt -s nullglob
 for pkg in "${prune[@]}"; do
     rm -rf "$target_dir/libs/$pkg" "$target_dir/libs/$pkg".libs "$target_dir/libs/$pkg"-*.dist-info
 done
+for path in "${prune_interpreter[@]}"; do
+    rm -rf "${target_dir:?}/python/$path"
+done
+
+# A VSIX cannot hold two paths differing only in case, and vsce only says so at the end
+# of a five-minute package step, having already built everything. Cheaper to say it
+# here. Worth checking on every build even though only Linux has ever tripped it, since
+# what puts a file in this tree is an upstream tarball nobody here reviews.
+#
+# Meaningful only on a case-sensitive build machine. On macOS the two names collapsed
+# into one at extraction and there is nothing left to find — which is also why a bundle
+# built there is not evidence that one built on CI is clean.
+collisions=$(find "$target_dir" | tr '[:upper:]' '[:lower:]' | sort | uniq -d)
+if [[ -n "$collisions" ]]; then
+    echo "FAIL: paths differing only in case, which no VSIX can hold:" >&2
+    sed 's/^/  /' <<<"$collisions" >&2
+    exit 1
+fi
 
 size_mb=$(du -sm "$target_dir" | cut -f1)
 echo

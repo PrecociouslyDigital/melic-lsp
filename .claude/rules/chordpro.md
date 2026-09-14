@@ -75,9 +75,12 @@ Three things about it that are decisions rather than details:
   renamed into first-appearance order, and a letter used once reads as `X` — no group of
   one is ever lettered, so no stanza could spell such a shape. `overrides.py` owns the
   discovery, the scoping and the `Problem` reporting, and nothing else.
-- **It is an expectation, not an instruction.** It corroborates a weak edge the phonetics
-  already allow and reports a stanza that drifts from it; it cannot make two words rhyme.
-  Forcing a pair would be a different directive (`{x_melic_rhyme}`), and is not built.
+- **It is an expectation, not an instruction.** It corroborates a weak edge, reports a
+  stanza that drifts from it, and widens the bound that stanza's own endings are heard
+  against (`DECLARED_CODA_MAX`, which is what reaches sing/in) — but only in search of
+  the shape declared, and never past a drifted vowel or a missing coda. So it cannot
+  make two words rhyme. Forcing a pair outright would be a different directive
+  (`{x_melic_rhyme}`), and is not built.
 
 Two things to preserve:
 

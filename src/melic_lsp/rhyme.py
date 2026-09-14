@@ -13,6 +13,12 @@ rhymes, or a shape its sibling stanzas spell too, the same pair is the obvious
 reading. So a near miss is admitted only where the structure around it vouches for
 one, and it is marked ``≈`` rather than quietly promoted to perfect.
 
+A file that states its pattern outright is heard differently again. ``{x_melic_scheme}``
+is a songwriter saying how the lines are sung, so it widens the bound the stanza's own
+endings are measured against — enough for the ``-ing``/``-in'`` of sung English — but
+only ever in search of the shape declared, and never past a drifted vowel or a coda
+that isn't there.
+
 How two lines chime is kept, not collapsed to a boolean: "B~" says the pairing is a
 slant rhyme, "B=" that the line simply ends on the same word again.
 """
@@ -219,6 +225,24 @@ CONTEXTUAL_CODA_MAX = 0.25
 Measured: bramble/fractal 0.22, time/line 0.21 and crazy/baby 0.19 are in;
 body/probably 0.40 and day/late 1.0 are out."""
 
+DECLARED_CODA_MAX = 0.45
+"""The same bound, for a stanza whose pattern the file states outright.
+
+A declaration is a songwriter saying how they sing the lines, which is worth more
+than anything inferred, so it buys endings a wider hearing: sing/in and gone/long
+(0.375, the ``-ing``/``-in'`` of sung English) and body/probably (0.40) are in,
+where unaided they are not. It buys a *hearing* rather than the answer — the wider
+bound is only ever searched for the exact shape declared, and the ending still has
+to reach it.
+
+Measured, and the reason it is a number and not a rule: the distance does not
+separate a coda that differs in place from one that differs in manner (n/ŋ is
+0.375, t/n only 0.25), so there is no phonology to appeal to here, only where the
+pairs fall. Out: came/fate 0.46, born/gone 0.5, along/born 0.69 — and day/late
+1.0, which is the one categorical case, a line ending open against one ending on a
+consonant. ``CONTEXTUAL_NUC_MAX`` still applies, declared or not: a drifted vowel
+is never forgiven."""
+
 MAX_FREE_LINES = 6
 """Bounds the pairs to measure: every unrhymed line is compared with every other one
 and with every strict group, so a stanza with more than this keeps its strict scheme
@@ -231,22 +255,28 @@ Real stanzas produce a handful — a dozen at the outside — and one that produ
 hundreds has no obvious reading to find, so it keeps its strict scheme too."""
 
 
-def contextual_chime(first: Syllabified, second: Syllabified) -> Chime | None:
+def contextual_chime(
+    first: Syllabified, second: Syllabified, coda_max: float = CONTEXTUAL_CODA_MAX
+) -> Chime | None:
     """The solver's one admission rule: same nucleus, near coda."""
-    return None if _weak_cost(first, second) is None else Chime.CONTEXTUAL
+    return None if _weak_cost(first, second, coda_max) is None else Chime.CONTEXTUAL
 
 
-def _weak_cost(first: Syllabified, second: Syllabified) -> float | None:
+def _weak_cost(
+    first: Syllabified, second: Syllabified, coda_max: float = CONTEXTUAL_CODA_MAX
+) -> float | None:
     """What this weak edge costs to use, or None when it is not on offer.
 
     The cost is the coda distance — how far the near miss actually missed — so that
-    between two otherwise equally good readings, the closer chime wins.
+    between two otherwise equally good readings, the closer chime wins. It is the
+    same number either side of ``coda_max``, so widening the bound for a declared
+    stanza reorders nothing; it only lets more edges be considered at all.
     """
     distance = prosody.rime_distance_nc(first, second)
     if distance is None:
         return None
     nucleus, coda = distance
-    return coda if nucleus <= CONTEXTUAL_NUC_MAX and coda <= CONTEXTUAL_CODA_MAX else None
+    return coda if nucleus <= CONTEXTUAL_NUC_MAX and coda <= coda_max else None
 
 
 @dataclass(frozen=True)
@@ -266,7 +296,9 @@ def _candidate(lines: Sequence[Lyric], groups: Sequence[_Group], cost: float) ->
     return _Candidate(tuple(groups), scheme_string(list(lines), _label(groups)), cost)
 
 
-def _candidates(lines: Sequence[Lyric], lang: str) -> list[_Candidate]:
+def _candidates(
+    lines: Sequence[Lyric], lang: str, declared: str | None = None
+) -> list[_Candidate]:
     """Every reading of this stanza the phonetics allow, the strict one first.
 
     Strict groups are never split or reshuffled — they are what the calibration
@@ -274,6 +306,12 @@ def _candidates(lines: Sequence[Lyric], lang: str) -> list[_Candidate]:
     stay free, join a strict group, or pair with another free line, wherever a weak
     edge exists. A line with no weak edge at all has one option, which is what keeps
     this enumeration small in practice.
+
+    When the file declares this stanza's pattern and nothing the ordinary bound
+    reaches can spell it, the search runs again under ``DECLARED_CODA_MAX`` and
+    keeps only what spells that exact shape. So a declaration widens what may be
+    heard without widening what may be concluded: an ending still has to land on
+    the stated pattern, and a stanza that simply does not rhyme gains nothing.
 
     Nothing here consults another stanza, which is why the round that chooses
     between these has no ordering effects.
@@ -285,18 +323,36 @@ def _candidates(lines: Sequence[Lyric], lang: str) -> list[_Candidate]:
     if not free or len(free) > MAX_FREE_LINES:
         return [base]
 
+    found = _readings(lines, strict, free, base, CONTEXTUAL_CODA_MAX)
+    if declared is None or any(candidate.shape == declared for candidate in found):
+        return found
+    return found + [
+        candidate
+        for candidate in _readings(lines, strict, free, base, DECLARED_CODA_MAX)
+        if candidate.shape == declared
+    ]
+
+
+def _readings(
+    lines: Sequence[Lyric],
+    strict: Sequence[_Group],
+    free: Sequence[_Group],
+    base: _Candidate,
+    coda_max: float,
+) -> list[_Candidate]:
+    """Walk the free lines under one admission bound, folding in every edge on offer."""
     to_group = {
         (spare, target): cost
         for spare, line in enumerate(free)
         for target, group in enumerate(strict)
-        for cost in [_weak_cost(line.opener, group.opener)]
+        for cost in [_weak_cost(line.opener, group.opener, coda_max)]
         if cost is not None
     }
     to_free = {
         (first, second): cost
         for first in range(len(free))
         for second in range(first + 1, len(free))
-        for cost in [_weak_cost(free[first].opener, free[second].opener)]
+        for cost in [_weak_cost(free[first].opener, free[second].opener, coda_max)]
         if cost is not None
     }
 
@@ -368,10 +424,17 @@ def solve(
     strictly better — never a tie broken towards saying more.
 
     ``declared`` is the pattern each stanza was told to have, positionally, from
-    ``{x_melic_scheme}``. It is an expectation, not an instruction: it corroborates
-    an edge the phonetics already allow and cannot conjure one they refuse.
+    ``{x_melic_scheme}``. It is a statement of intent rather than an instruction: it
+    corroborates a reading, and it widens the bound the stanza's own endings are
+    heard against (see :func:`_candidates`), but it cannot conjure a rhyme the
+    phonetics refuse — a drifted vowel or a missing coda is still no.
     """
-    readings = [_candidates(list(stanza), lang) for stanza in stanzas]
+    readings = [
+        _candidates(
+            list(stanza), lang, declared[index] if index < len(declared) else None
+        )
+        for index, stanza in enumerate(stanzas)
+    ]
     reachable = [
         {candidate.shape for candidate in stanza if candidate.shape}
         for stanza in readings

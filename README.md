@@ -42,6 +42,21 @@ You can also manually declare a rhyme scheme
 {x_melic_scheme: chorus = ABXAB}   every chorus in the song
 ```
 
+Declaring one is worth more than a hint to check against. It tells Melic how you sing
+the lines, so that stanza's endings get a more generous hearing than they would on
+their own — enough for the `-ing`/`-in'` that carries a lot of folk song:
+
+```
+Oh if I was a blackbird, could whistle and sing,     12σ A
+I'd follow the vessel my true love sails in,         11σ A≈
+```
+
+Without the declaration those two are left unlabelled, because `sing`/`in` is past
+what Melic will call a rhyme unprompted. The extra latitude only ever goes toward the
+shape you declared, though, and it stops well short of pretending: a different vowel,
+or one line ending on a vowel where the other ends on a consonant, is still no. A
+stanza that does not rhyme will still be reported as not matching what you declared.
+
 ## Hints
 
 Melic has some configurable hints:

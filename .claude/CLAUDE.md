@@ -25,7 +25,10 @@ trailing `?` on the count means a word had no pronunciation, so the number is a 
 
 A song can declare the shape it means to have, which the solver honours and the hints
 measure against: `{x_melic_scheme: ABAB}` for a section, `{x_melic_scheme: chorus = ABAB}`
-for every section of a kind.
+for every section of a kind. A declaration also buys that stanza's endings a wider
+hearing (`DECLARED_CODA_MAX`, which is what reaches sing/in) — but only toward the shape
+declared, and never past a drifted vowel or a missing coda, so a stanza that merely
+wishes it rhymed is still reported as drifting.
 
 The **line signature** — stress marks grouped by chord, `6σ · + [D]++ [G]+- [D]-` — is
 `melic.lineSignature.mode` away, but it lives properly in the Scansion Panel and Compare

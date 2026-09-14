@@ -16,7 +16,10 @@ A song can also declare the shape it means to have:
 
 That one is an expectation rather than a correction: it tells the solver which
 near rhymes the song is reaching for, and gives the hints something to hold a stanza
-to. It cannot make two words rhyme that do not.
+to. Saying it is worth something — the solver measures that stanza's endings against
+a wider bound, enough to hear sing/in — but only in search of the shape declared, and
+a drifted vowel or a missing coda still refuses. It cannot make two words rhyme that
+do not.
 
 No prosodic here — this is parsing and scoping only, so it stays fast to test.
 """

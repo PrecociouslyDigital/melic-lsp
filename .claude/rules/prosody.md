@@ -74,6 +74,16 @@ admits `Chime.CONTEXTUAL` (`≈`) rather than folding it into `SLANT`. The thres
 ours, not prosodic's, which is why they sit in `rhyme.py` with the measurements that
 chose them, while `prosody.py` only reports distances.
 
+A declaration additionally **widens the coda bound for that stanza** to
+`DECLARED_CODA_MAX` — the songwriter is stating how the lines are sung, which is worth
+more than anything inferred, and it is what reaches the `-ing`/`-in'` of sung English
+(sing/in, coda 0.375). Two things keep that from becoming self-fulfilling: the wider
+search runs **only when the ordinary bound cannot spell the declared shape**, and it
+keeps **only candidates that spell exactly that shape**. `CONTEXTUAL_NUC_MAX` is not
+widened by anything, and a coda distance of 1.0 — one line ending open against one
+ending on a consonant — is categorical. So `rhymeSchemeMismatch` still fires on a stanza
+that merely wishes it rhymed.
+
 Two bounds keep the search from costing more than the document: `MAX_FREE_LINES` (how
 many endings get compared) and `MAX_CANDIDATES` (how many readings get weighed). Without
 the second, a stanza with weak edges in every direction takes seconds — measured, and

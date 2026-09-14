@@ -160,7 +160,13 @@ def near_miss_quatrain() -> list:
         ("time", "line", True),  # coda 0.21
         ("body", "probably", False),  # coda 0.40
         ("day", "late", False),  # coda 1.0 — the textbook assonance
-        ("fire", "wire", False),  # the vowel drifts, which a weak edge never forgives
+        # Reads as a drifted vowel only because prosodic classifies phonemes by
+        # [-consonantal], which makes the glide /w/ a vowel: "wire" carries its own
+        # onset into the rime, so its nucleus measures as /w aɪ/ against "fire"'s
+        # /aɪ/. Fixed upstream (PrecociouslyDigital/prosodic@develop); when that
+        # release lands, fire/wire is the perfect rhyme it always was and belongs
+        # nowhere near this table — replace it with a genuinely drifting pair.
+        ("fire", "wire", False),
     ],
 )
 def test_the_weak_edge_bounds(
@@ -176,6 +182,9 @@ def test_a_stanza_that_rhymes_vouches_for_its_own_near_miss(warm: None) -> None:
     read as the pair answering each other rather than as loose ends."""
     quatrain = near_miss_quatrain()
     labels = solve([quatrain])
+    # The "~" on fire/wire is prosodic's glide bug, not this solver's reading — see
+    # the note in the table above. The upstream fix makes it a plain "A"; the shape
+    # it vouches for, which is what this test is about, is unaffected either way.
     assert [labels[row].label for row in range(4)] == ["A", "B", "A~", "B≈"]
     assert scheme_string(quatrain, labels) == "ABAB"
 
@@ -241,7 +250,7 @@ def test_a_stanza_whose_near_misses_are_tangled_keeps_its_strict_scheme(
     which real phonetics never do, and which is exactly why the bound has to be on
     the number of readings rather than on the words.
     """
-    monkeypatch.setattr(rhyme, "_weak_cost", lambda first, second: 0.1)
+    monkeypatch.setattr(rhyme, "_weak_cost", lambda first, second, coda_max=0.0: 0.1)
     tangled = stanza(
         "We walked the road at fall of night,",
         "A lantern gave us light,",
@@ -267,3 +276,67 @@ def test_a_stanza_that_already_rhymes_throughout_adopts_nothing(warm: None) -> N
         "The furrows lying bare and plain,",
     )
     assert solve([quatrain]) == scheme(quatrain)
+
+
+# --- What a declared pattern buys ---------------------------------------------
+#
+# sing/in is the case these are written around: same nucleus, coda 0.375, which is
+# the ``-ing``/``-in'`` of sung English and well past CONTEXTUAL_CODA_MAX.
+
+
+def declared_quatrain() -> list:
+    """cold/gold rhymes outright; sing/in is the near miss no unaided bound reaches."""
+    return stanza(
+        "A kettle and a robin start to sing,",
+        "The morning with the weather settling in,",
+        "The water in the barrel running cold,",
+        "The willow at the meadow gate turning gold,",
+    )
+
+
+@pytest.mark.requires_prosodic
+def test_an_unaided_stanza_does_not_reach_sing_in(warm: None) -> None:
+    """The half of this that must keep working: left to itself, the solver agrees
+    with the strict pass, however plainly the stanza is shaped like AABB."""
+    quatrain = declared_quatrain()
+    assert contextual_chime(ending("sing"), ending("in")) is None
+    assert solve([quatrain]) == scheme(quatrain)
+    assert scheme_string(quatrain, solve([quatrain])) == "XXAA"
+
+
+@pytest.mark.requires_prosodic
+def test_a_declared_pattern_widens_the_bound_the_endings_are_heard_against(
+    warm: None,
+) -> None:
+    """The motivating case. Saying the stanza is AABB is a songwriter saying how
+    they sing it, so sing/in gets the hearing it does not get on its own — and is
+    still marked ``≈``, because the reason to believe it is the declaration."""
+    quatrain = declared_quatrain()
+    labels = solve([quatrain], declared=["AABB"])
+    assert [labels[row].label for row in range(4)] == ["A", "A≈", "B", "B"]
+    assert scheme_string(quatrain, labels) == "AABB"
+
+
+@pytest.mark.requires_prosodic
+def test_the_widened_bound_only_ever_spells_what_was_declared(warm: None) -> None:
+    """A declaration widens what may be heard, not what may be concluded. Pairing
+    sing/in spells AABB; this stanza claims ABAB, which no reading reaches, so the
+    near miss stays a near miss rather than being taken as far as it will go."""
+    quatrain = declared_quatrain()
+    assert solve([quatrain], declared=["ABAB"]) == scheme(quatrain)
+
+
+@pytest.mark.requires_prosodic
+def test_a_declaration_cannot_conjure_a_rhyme_the_phonetics_refuse(warm: None) -> None:
+    """The two refusals the wider bound keeps: a drifted vowel, and a line ending
+    open against one ending on a consonant (day/late, the textbook assonance)."""
+    for first, second in [("day", "late"), ("cat", "dog")]:
+        chime = contextual_chime(ending(first), ending(second), rhyme.DECLARED_CODA_MAX)
+        assert chime is None, f"{first}/{second}"
+    quatrain = stanza(
+        "A kettle and a robin start to sing,",
+        "The water in the barrel running cold,",
+        "The shutters that we opened to the day,",
+        "The willow at the meadow gate was late,",
+    )
+    assert solve([quatrain], declared=["AABB"]) == scheme(quatrain) == {}

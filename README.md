@@ -103,7 +103,7 @@ sudo apt install espeak-ng
 choco install espeak-ng
 ```
 
-### espeak
+### pytorch
 
 `prosodic` also supports using [pytorch](https://github.com/pytorch/pytorch) to speed up automated scansion
 This extension does not bundle pytorch, but it will be used if it is available in the extension's environment.
@@ -139,3 +139,37 @@ To reload during development, run
 ```bash
 uv tool install . --force --reinstall
 ```
+
+`--reinstall` is not optional: uv caches the built wheel under the version, which
+rarely changes, so `--force` alone happily reinstalls the same stale copy and says it
+succeeded. It matters because the extension runs the first server it finds — a trusted
+workspace's `.venv`, then `~/.local/bin/melic-lsp`, and only then the copy it bundled —
+so a stale global install outranks the bundle and is what you end up editing against.
+The workspace `.venv` is an editable install pointing at `src/`, so only the global
+copy ever drifts, which is why this hides until you open a file outside the repo.
+
+## Releasing
+
+The version lives in two files and the tag has to agree with both. `npm version` keeps
+`package-lock.json` in step:
+
+```bash
+# bump `version` in pyproject.toml, then
+cd editors/vscode && npm version X.Y.Z --no-git-tag-version && cd -
+./scripts/check_versions.sh vX.Y.Z
+git push origin main
+git tag vX.Y.Z && git push origin vX.Y.Z
+```
+
+The tag does the rest: the full CI suite runs first, then one VSIX per platform is
+built and attached to a GitHub Release.
+
+Publishing onward to the extension registries is opt-in, one repository secret each:
+
+| Secret | Buys |
+|---|---|
+| `VSCE_PAT` | the VS Code Marketplace |
+| `OVSX_TOKEN` | Open VSX |
+
+Neither is required. With a secret unset, its step is skipped, the run says so in a
+notice, and the release is GitHub-only — the attached VSIXes still install by hand.

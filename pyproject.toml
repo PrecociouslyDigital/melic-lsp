@@ -1,6 +1,6 @@
 [project]
 name = "melic-lsp"
-version = "1.0.0"
+version = "1.1.0"
 description = "A prosody language server for ChordPro files"
 readme = "README.md"
 # GPL because prosodic is: importing it makes this a derivative work.
@@ -8,7 +8,12 @@ license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
-    "prosodic>=3.10.0",
+    # Pinned past v3.10.0: the rhyme and syllable fixes melic leans on are merged
+    # upstream but unreleased, and main still self-reports 3.10.0, so no version
+    # constraint can reach them. A PEP 508 direct URL rather than [tool.uv.sources]
+    # because only the former survives into wheel metadata, and the VSIX bundles
+    # this tree. Swap back to a release constraint once upstream tags.
+    "prosodic @ git+https://github.com/quadrismegistus/prosodic@07016977b449a43c866d0fb75f9f7037cad243ad",
     "pygls>=2.1",
 ]
 
@@ -24,6 +29,11 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# The prosodic pin above is a direct URL; hatchling refuses to bake one into wheel
+# metadata unless told to. Goes away with the pin.
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/melic_lsp"]

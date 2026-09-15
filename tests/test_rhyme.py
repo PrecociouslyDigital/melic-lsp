@@ -160,13 +160,10 @@ def near_miss_quatrain() -> list:
         ("time", "line", True),  # coda 0.21
         ("body", "probably", False),  # coda 0.40
         ("day", "late", False),  # coda 1.0 — the textbook assonance
-        # Reads as a drifted vowel only because prosodic classifies phonemes by
-        # [-consonantal], which makes the glide /w/ a vowel: "wire" carries its own
-        # onset into the rime, so its nucleus measures as /w aɪ/ against "fire"'s
-        # /aɪ/. Fixed upstream (PrecociouslyDigital/prosodic@develop); when that
-        # release lands, fire/wire is the perfect rhyme it always was and belongs
-        # nowhere near this table — replace it with a genuinely drifting pair.
-        ("fire", "wire", False),
+        # The nucleus bound refusing rather than the coda one: identical codas, and
+        # still no chime, because the vowel drifted. The narrowest drift measured,
+        # so it is the entry that notices if CONTEXTUAL_NUC_MAX is ever loosened.
+        ("cat", "cot", False),  # nucleus 0.125, coda 0.0
     ],
 )
 def test_the_weak_edge_bounds(
@@ -182,10 +179,7 @@ def test_a_stanza_that_rhymes_vouches_for_its_own_near_miss(warm: None) -> None:
     read as the pair answering each other rather than as loose ends."""
     quatrain = near_miss_quatrain()
     labels = solve([quatrain])
-    # The "~" on fire/wire is prosodic's glide bug, not this solver's reading — see
-    # the note in the table above. The upstream fix makes it a plain "A"; the shape
-    # it vouches for, which is what this test is about, is unaffected either way.
-    assert [labels[row].label for row in range(4)] == ["A", "B", "A~", "B≈"]
+    assert [labels[row].label for row in range(4)] == ["A", "B", "A", "B≈"]
     assert scheme_string(quatrain, labels) == "ABAB"
 
 

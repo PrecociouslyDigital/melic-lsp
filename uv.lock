@@ -705,7 +705,7 @@ wheels = [
 
 [[package]]
 name = "melic-lsp"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "prosodic" },
@@ -720,7 +720,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "prosodic", specifier = ">=3.10.0" },
+    { name = "prosodic", git = "https://github.com/quadrismegistus/prosodic?rev=07016977b449a43c866d0fb75f9f7037cad243ad" },
     { name = "pygls", specifier = ">=2.1" },
 ]
 
@@ -1142,7 +1142,7 @@ wheels = [
 [[package]]
 name = "prosodic"
 version = "3.10.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/quadrismegistus/prosodic?rev=07016977b449a43c866d0fb75f9f7037cad243ad#07016977b449a43c866d0fb75f9f7037cad243ad" }
 dependencies = [
     { name = "click" },
     { name = "editdistance" },
@@ -1174,10 +1174,6 @@ dependencies = [
     { name = "tqdm" },
     { name = "unicodecsv" },
     { name = "uvicorn", extra = ["standard"] },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/b6/58/c2f0d8f328552f225b2d62537d56a583c7d60d0a22792e304245fc8983ae/prosodic-3.10.0.tar.gz", hash = "sha256:6f17ac9145660e48c059bb1d48e1b988cae524e325e79f0820e79fc5f2f5c1ea", size = 2074922, upload-time = "2026-07-10T20:06:59.122Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/08/8354296655b186f36d325f3fabd830f253a951dcf2b0132a4435d99afed1/prosodic-3.10.0-py3-none-any.whl", hash = "sha256:c3767e0950d32cc6d23181a8fa551ccc0efe184f50e6b071d022999e3a36df97", size = 2132778, upload-time = "2026-07-10T20:06:56.998Z" },
 ]
 
 [[package]]
